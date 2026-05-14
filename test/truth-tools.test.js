@@ -9,6 +9,7 @@ import { renderForExportProfile } from "../src/exports.js";
 import { callTruthTool, listTruthTools } from "../src/mcp-tools.js";
 import { reconcileProgram } from "../src/program.js";
 import { normalizeConflict, normalizeTimelineItem, PROGRAM_STATUS_SECTIONS } from "../src/schemas.js";
+import { checkForUpdates, formatUpdateCheck, getUpdateTargets } from "../src/updates.js";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -177,4 +178,52 @@ test("doctor verifies install, schema, render, and MCP surface", () => {
     result.checks.map((check) => check.name),
     ["install", "schema", "render", "mcp"]
   );
+});
+
+test("update checker reports newer truth package versions", async () => {
+  const targets = getUpdateTargets({
+    name: "truth-tools",
+    version: "0.1.0",
+    dependencies: {
+      "capture-truth": "^0.2.0",
+      "timeline-truth": "^0.2.0"
+    }
+  });
+
+  const result = await checkForUpdates({
+    targets,
+    fetchImpl: async (url) => ({
+      ok: true,
+      async json() {
+        const versions = {
+          "truth-tools": "0.1.1",
+          "capture-truth": "0.2.0",
+          "timeline-truth": "0.3.0"
+        };
+        const name = decodeURIComponent(String(url).split("/").at(-2));
+        return { version: versions[name] };
+      }
+    })
+  });
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(
+    result.updates.map((update) => `${update.name}@${update.current}->${update.latest}`),
+    ["truth-tools@0.1.0->0.1.1", "timeline-truth@0.2.0->0.3.0"]
+  );
+  assert.equal(formatUpdateCheck(result), "updates available: truth-tools 0.1.0 -> 0.1.1; timeline-truth 0.2.0 -> 0.3.0");
+});
+
+test("update checker stays non-fatal when registry lookup fails", async () => {
+  const result = await checkForUpdates({
+    targets: [{ name: "truth-tools", current: "0.1.0" }],
+    fetchImpl: async () => {
+      throw new Error("offline");
+    }
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.updates.length, 0);
+  assert.equal(result.errors.length, 1);
+  assert.equal(formatUpdateCheck(result), "update check unavailable for truth-tools");
 });

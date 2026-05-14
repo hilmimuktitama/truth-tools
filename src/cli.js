@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 
 import { callTruthTool } from "./mcp-tools.js";
+import { checkForUpdates, formatUpdateCheck, getUpdateTargets, readPackageJson } from "./updates.js";
 
 export async function runCli(argv = []) {
   const [domain, command, ...flags] = argv;
@@ -14,6 +15,11 @@ export async function runCli(argv = []) {
     const result = callTruthTool("doctor.all", { all: flags.includes("--all") });
     for (const check of result.checks) {
       write(`${check.ok ? "ok" : "fail"} - ${check.name}: ${check.message}`);
+    }
+    if (!flags.includes("--no-update-check")) {
+      const updates = await checkForUpdates({ targets: getUpdateTargets(readPackageJson()) });
+      const updateStatus = updates.updates.length > 0 || updates.errors.length > 0 ? "warn" : "ok";
+      write(`${updateStatus} - updates: ${formatUpdateCheck(updates)}`);
     }
     return result.ok ? 0 : 1;
   }
@@ -86,6 +92,7 @@ function write(text) {
 function usage() {
   return `truth-tools commands:
   truth-tools doctor --all
+  truth-tools doctor --all --no-update-check
   truth-tools capture create --input intake.json
   truth-tools capture validate --input evidence-pack.json
   truth-tools capture render --export-profile repo-safe-summary --input evidence-pack.json

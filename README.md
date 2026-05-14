@@ -143,3 +143,9 @@ npm test
 npm run check
 npm pack --dry-run
 ```
+
+## Update Checks
+
+`truth-tools doctor --all` checks npm for newer versions of `truth-tools`, `capture-truth`, and `timeline-truth`.
+
+Use `truth-tools doctor --all --no-update-check` for CI or offline runs.
