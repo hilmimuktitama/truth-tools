@@ -1,10 +1,10 @@
 # Truth Tools
 
-`truth-tools` is the unified entrypoint for this workspace's three truth packages:
+`truth-tools` is the unified entrypoint for three truth packages:
 
-- `capture-truth` for evidence intake
-- `program-truth` for program reconciliation
-- `timeline-truth` for timeline compilation and validation
+- [`capture-truth`](https://github.com/hilmimuktitama/capture-truth) for evidence intake
+- [`program-truth`](https://github.com/hilmimuktitama/program-truth) for program reconciliation
+- [`timeline-truth`](https://github.com/hilmimuktitama/timeline-truth) for timeline compilation and validation
 
 It keeps the existing packages focused and exposes one consistent CLI and MCP-oriented callable surface for benchmarking and TPM review workflows.
 
