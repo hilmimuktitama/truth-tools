@@ -1,0 +1,39 @@
+{
+  "name": "truth-tools",
+  "version": "0.1.0",
+  "description": "Unified CLI and MCP-oriented entrypoint for capture-truth, program-truth, and timeline-truth.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "truth-tools": "bin/truth-tools.js",
+    "truth-tools-mcp": "src/mcp-server.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "test",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --test",
+    "check": "node --check bin/truth-tools.js && node --check src/cli.js && node --check src/dependencies.js && node --check src/doctor.js && node --check src/exports.js && node --check src/mcp-server.js && node --check src/mcp-tools.js && node --check src/program.js && node --check src/schemas.js",
+    "pack:dry-run": "npm pack --dry-run"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.17.5",
+    "capture-truth": "^0.2.0",
+    "timeline-truth": "^0.2.0"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "keywords": [
+    "mcp",
+    "truth-tools",
+    "evidence",
+    "timeline",
+    "program-management",
+    "tpm"
+  ]
+}

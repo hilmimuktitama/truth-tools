@@ -1,0 +1,9 @@
+{
+  "sources": [
+    {
+      "id": "fixture-plan",
+      "type": "text",
+      "content": "Phase 1: 2026-06-01 to 2026-06-05 owner TPM status planned\nPhase 2 owner Engineering"
+    }
+  ]
+}

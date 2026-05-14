@@ -1,0 +1,29 @@
+{
+  "timeline": {
+    "items": [
+      {
+        "title": "Phase 1",
+        "type": "task",
+        "start": "2026-06-01",
+        "end": "2026-06-05",
+        "owner": "TPM",
+        "status": "planned",
+        "dependencies": [],
+        "source_refs": [{ "sourceId": "fixture-plan", "line": 1 }]
+      },
+      {
+        "title": "Phase 2",
+        "type": "task",
+        "date_text": "TBC",
+        "owner": "Engineering",
+        "status": "planned",
+        "dependencies": [],
+        "source_refs": [{ "sourceId": "fixture-plan", "line": 2 }]
+      }
+    ],
+    "assumptions": [
+      "No dates were inferred."
+    ],
+    "gaps": []
+  }
+}

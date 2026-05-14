@@ -1,0 +1,26 @@
+{
+  "evidence_pack": {
+    "kind": "evidence_pack",
+    "claims": [
+      {
+        "id": "fact-1",
+        "text": "BIF-7550 remains open.",
+        "source_refs": [{ "sourceId": "jira" }]
+      },
+      {
+        "id": "unknown-1",
+        "text": "Phase 2 date is TBC.",
+        "category": "unknown",
+        "source_refs": [{ "sourceId": "local-note" }]
+      }
+    ],
+    "conflicts": [
+      {
+        "claim": "Bifrost readiness",
+        "source_a": { "system": "confluence", "value": "ready" },
+        "source_b": { "system": "jira", "value": "BIF-7550 open" },
+        "conflict_type": "status_mismatch"
+      }
+    ]
+  }
+}

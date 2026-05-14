@@ -1,0 +1,24 @@
+{
+  "evidence_pack": {
+    "kind": "evidence_pack",
+    "sources": [
+      {
+        "id": "fixture-note",
+        "type": "text",
+        "captured_at": "2026-05-14T00:00:00Z",
+        "freshness": "fresh",
+        "content": "Do not render this raw source body in repo-safe output."
+      }
+    ],
+    "claims": [
+      {
+        "id": "claim-1",
+        "text": "Repo-safe summary should preserve counts and metadata.",
+        "source_refs": [{ "sourceId": "fixture-note" }]
+      }
+    ],
+    "gaps": [],
+    "conflicts": [],
+    "assumptions": []
+  }
+}
