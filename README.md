@@ -8,7 +8,52 @@
 
 It keeps the existing packages focused and exposes one consistent CLI and MCP-oriented callable surface for benchmarking and TPM review workflows.
 
-## CLI
+## Easy Way: Ask Your AI Agent
+
+If your AI agent supports MCP, you can ask it to install and configure `truth-tools` from this repository.
+
+Give your AI agent this prompt:
+
+```text
+Let's use truth-tools from https://github.com/hilmimuktitama/truth-tools.
+Install or configure it for this AI agent, verify it with doctor, then use it to create evidence packs, timelines, and repo-safe summaries.
+```
+
+Instructions for the AI agent:
+
+1. Confirm Node.js `>=22` is available.
+2. Prefer the npm package MCP setup. Add this server to the user's MCP config:
+
+```json
+{
+  "mcpServers": {
+    "truth-tools": {
+      "command": "npx",
+      "args": ["-y", "--package=truth-tools", "truth-tools-mcp"]
+    }
+  }
+}
+```
+
+3. Reload or restart the MCP client if needed so it discovers the server.
+4. Verify the setup with the MCP tool `doctor.all`. If MCP verification is not available yet, use:
+
+```bash
+npx -y --package=truth-tools truth-tools doctor --all
+```
+
+5. Use the exposed tools to help the user:
+
+- `capture.create`
+- `capture.validate`
+- `capture.render`
+- `program.reconcile`
+- `timeline.create`
+- `timeline.validate`
+- `timeline.render`
+- `doctor.all`
+
+## CLI Usage
 
 ```bash
 truth-tools doctor --all
@@ -37,19 +82,6 @@ The MCP server exposes dotted tool names:
 - `timeline.render`
 - `doctor.all`
 
-Local checkout config:
-
-```json
-{
-  "mcpServers": {
-    "truth-tools": {
-      "command": "node",
-      "args": ["C:/path/to/truth-tools/src/mcp-server.js"]
-    }
-  }
-}
-```
-
 Npm-style config:
 
 ```json
@@ -58,6 +90,21 @@ Npm-style config:
     "truth-tools": {
       "command": "npx",
       "args": ["-y", "--package=truth-tools", "truth-tools-mcp"]
+    }
+  }
+}
+```
+
+### Advanced: Local Development MCP Config
+
+Use this only when developing against a local checkout instead of the published npm package:
+
+```json
+{
+  "mcpServers": {
+    "truth-tools": {
+      "command": "node",
+      "args": ["C:/path/to/truth-tools/src/mcp-server.js"]
     }
   }
 }
