@@ -1,5 +1,7 @@
 # Truth Tools
 
+> Work in progress: this repository is still experimental and the public CLI/MCP contract may change while the truth workflow is being validated.
+
 `truth-tools` is the unified entrypoint for three truth packages:
 
 - [`capture-truth`](https://github.com/hilmimuktitama/capture-truth) for evidence intake
@@ -285,6 +287,7 @@ The MCP server exposes these dotted tool names:
 
 | Tool | Required top-level args | Purpose | Recommended next call |
 | --- | --- | --- | --- |
+| `truth.run` | `sources` | Run the full agent-first truth review contract and return a canonical `truth_run` artifact. | Review `quality`, `repo_safe_summary`, and raw-local policy. |
 | `doctor.all` | none (`all` is optional) | Smoke-test install, schemas, render path, and MCP tool surface. | Start first-use flow. |
 | `capture.create` | `sources` | Create an evidence pack from pasted, local, or adapter-produced sources. | `capture.validate` |
 | `capture.validate` | `evidence_pack` | Validate source metadata, freshness, references, and conflicts. | `capture.render` |
@@ -299,6 +302,8 @@ The MCP server exposes these dotted tool names:
 ```bash
 truth-tools doctor --all
 
+truth-tools truth run --input run-input.json --out .truth-tools/runs/<run-id>
+
 truth-tools capture create --input intake.json
 truth-tools capture validate --input evidence-pack.json
 truth-tools capture render --export-profile repo-safe-summary --input evidence-pack.json
@@ -310,6 +315,8 @@ truth-tools timeline validate --input timeline.json
 truth-tools timeline render --format markdown --input timeline.json
 truth-tools timeline render --export-profile repo-safe-summary --input timeline.json
 ```
+
+`truth run` is the preferred agent-facing path. It runs capture, timeline creation, program reconciliation, quality checks, and repo-safe rendering, then returns a canonical `truth_run` artifact. Source `profile` is optional but recommended; supported values are `status_note`, `estimate_table`, `objective_table`, `progress_table`, `timeline_note`, `decision_log`, `meeting_note`, and `unknown`.
 
 ## Doctor
 

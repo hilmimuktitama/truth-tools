@@ -29,6 +29,7 @@ test("lists one dotted callable interface for capture, program, timeline, and do
   const names = listTruthTools().map((tool) => tool.name);
 
   assert.deepEqual(names, [
+    "truth.run",
     "capture.create",
     "capture.validate",
     "capture.render",

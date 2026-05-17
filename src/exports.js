@@ -61,9 +61,9 @@ function renderRepoSafeSummary(artifact = {}, { includeClaims = true } = {}) {
 function renderEvidenceSummary(pack = {}, { includeClaims }) {
   const sources = Array.isArray(pack.sources) ? pack.sources : [];
   const claims = Array.isArray(pack.claims) ? pack.claims : [];
-  const gaps = Array.isArray(pack.gaps) ? pack.gaps : [];
-  const conflicts = Array.isArray(pack.conflicts) ? pack.conflicts : [];
-  const assumptions = Array.isArray(pack.assumptions) ? pack.assumptions : [];
+  const gaps = dedupeObjects(Array.isArray(pack.gaps) ? pack.gaps : [], gapKey);
+  const conflicts = dedupeObjects(Array.isArray(pack.conflicts) ? pack.conflicts : [], conflictKey);
+  const assumptions = dedupeScalars(Array.isArray(pack.assumptions) ? pack.assumptions : []);
   const lines = ["# Evidence Pack", "", "## Summary"];
 
   lines.push(`- Sources: ${sources.length}`);
@@ -121,8 +121,8 @@ function renderEvidenceSummary(pack = {}, { includeClaims }) {
 
 function renderTimelineSummary(timeline = {}) {
   const items = Array.isArray(timeline.items) ? timeline.items : [];
-  const gaps = Array.isArray(timeline.gaps) ? timeline.gaps : [];
-  const assumptions = Array.isArray(timeline.assumptions) ? timeline.assumptions : [];
+  const gaps = dedupeObjects(Array.isArray(timeline.gaps) ? timeline.gaps : [], timelineGapKey).filter((gap) => !isMetadataGap(gap));
+  const assumptions = dedupeScalars(Array.isArray(timeline.assumptions) ? timeline.assumptions : []);
   const lines = ["# Timeline", ""];
 
   for (const item of items) {
@@ -169,4 +169,57 @@ function cloneWithoutRawContent(value) {
     next[key] = cloneWithoutRawContent(entry);
   }
   return next;
+}
+
+function dedupeObjects(values, keyFn) {
+  const seen = new Set();
+  const deduped = [];
+
+  for (const value of values) {
+    const key = keyFn(value);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(value);
+  }
+
+  return deduped;
+}
+
+function dedupeScalars(values) {
+  const seen = new Set();
+  return values.filter((value) => {
+    const key = String(value).trim().toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function gapKey(gap = {}) {
+  return [
+    String(gap.type ?? gap.field ?? "gap").toLowerCase(),
+    String(gap.source_id ?? gap.itemTitle ?? "").toLowerCase(),
+    String(gap.message ?? gap.question ?? "").toLowerCase()
+  ].join("|");
+}
+
+function timelineGapKey(gap = {}) {
+  return [
+    String(gap.itemTitle ?? "Timeline item").toLowerCase(),
+    String(gap.field ?? "gap").toLowerCase(),
+    String(gap.question ?? "Follow-up needed.").toLowerCase()
+  ].join("|");
+}
+
+function conflictKey(conflict = {}) {
+  return [
+    String(conflict.claim ?? conflict.message ?? conflict.type ?? "conflict").toLowerCase(),
+    JSON.stringify(conflict.source_a ?? conflict.sourceA ?? {}),
+    JSON.stringify(conflict.source_b ?? conflict.sourceB ?? {})
+  ].join("|");
+}
+
+function isMetadataGap(gap = {}) {
+  const title = String(gap.itemTitle ?? "").trim().toLowerCase();
+  return ["generated", "timezone", "time zone"].includes(title);
 }

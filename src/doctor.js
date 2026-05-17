@@ -103,6 +103,7 @@ function checkRender() {
 
 function checkMcp() {
   const expected = [
+    "truth.run",
     "capture.create",
     "capture.validate",
     "capture.render",

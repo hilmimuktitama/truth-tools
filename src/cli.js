@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 
 import { callTruthTool } from "./mcp-tools.js";
+import { writeTruthRunOutputs } from "./truth-run.js";
 import { checkForUpdates, formatUpdateCheck, getUpdateTargets, readPackageJson } from "./updates.js";
 
 export async function runCli(argv = []) {
@@ -27,13 +28,18 @@ export async function runCli(argv = []) {
   const input = readJsonInput(flags);
   const exportProfile = getFlagValue(flags, "--export-profile");
   const format = getFlagValue(flags, "--format");
+  const outDir = getFlagValue(flags, "--out");
   const toolName = toToolName(domain, command);
   const args = {
     ...input,
     ...(exportProfile ? { export_profile: exportProfile } : {}),
     ...(format ? { format } : {})
   };
-  const result = callTruthTool(toolName, args);
+  let result = callTruthTool(toolName, args);
+
+  if (toolName === "truth.run" && outDir) {
+    result = writeTruthRunOutputs(result, input, outDir);
+  }
 
   if (typeof result === "string") {
     write(result);
@@ -53,7 +59,8 @@ function toToolName(domain, command) {
     "program.reconcile",
     "timeline.create",
     "timeline.validate",
-    "timeline.render"
+    "timeline.render",
+    "truth.run"
   ]);
 
   if (!supported.has(toolName)) {
@@ -66,8 +73,9 @@ function toToolName(domain, command) {
 function readJsonInput(flags) {
   const inputPath = getFlagValue(flags, "--input");
   const text = inputPath ? readFileSync(inputPath, "utf8") : readStdin();
-  if (!text.trim()) return {};
-  return JSON.parse(text);
+  const normalized = text.replace(/^\uFEFF/, "");
+  if (!normalized.trim()) return {};
+  return JSON.parse(normalized);
 }
 
 function readStdin() {
@@ -93,6 +101,7 @@ function usage() {
   return `truth-tools commands:
   truth-tools doctor --all
   truth-tools doctor --all --no-update-check
+  truth-tools truth run --input run-input.json --out .truth-tools/runs/<run-id>
   truth-tools capture create --input intake.json
   truth-tools capture validate --input evidence-pack.json
   truth-tools capture render --export-profile repo-safe-summary --input evidence-pack.json

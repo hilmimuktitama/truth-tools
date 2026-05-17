@@ -11,9 +11,16 @@ import { runDoctor } from "./doctor.js";
 import { renderForExportProfile } from "./exports.js";
 import { reconcileProgram } from "./program.js";
 import { normalizeTimeline } from "./schemas.js";
+import { attachSourceMetadata, normalizeSourceInput, SOURCE_PROFILES } from "./source-normalization.js";
+import { runTruthReview } from "./truth-run.js";
 
 export function listTruthTools() {
   return [
+    {
+      name: "truth.run",
+      description: "Run the full agent-first truth review contract and return a canonical truth_run artifact.",
+      inputSchema: truthRunInputSchema()
+    },
     {
       name: "capture.create",
       description: "Create an evidence pack from pasted, local, or adapter-produced sources.",
@@ -89,8 +96,10 @@ export function listTruthTools() {
 
 export function callTruthTool(name, args = {}) {
   switch (name) {
+    case "truth.run":
+      return runTruthReview(args);
     case "capture.create":
-      return createEvidencePack(args);
+      return createCapture(args);
     case "capture.validate":
       return validateEvidencePack(args.evidence_pack ?? args);
     case "capture.render":
@@ -98,7 +107,7 @@ export function callTruthTool(name, args = {}) {
     case "program.reconcile":
       return reconcileProgram(args);
     case "timeline.create":
-      return normalizeTimelineResult(createTimeline(args));
+      return normalizeTimelineResult(createTimeline(normalizeSourceInput(args, { forTimeline: true })));
     case "timeline.validate":
       return validateTimeline(normalizeTimeline(args.timeline));
     case "timeline.render":
@@ -165,9 +174,46 @@ function sourceInputSchema() {
         items: {
           type: "object",
           required: ["content"],
-          additionalProperties: true
+          additionalProperties: true,
+          properties: {
+            id: { type: "string" },
+            type: { type: "string", enum: ["text", "markdown", "csv", "json"] },
+            profile: { type: "string", enum: SOURCE_PROFILES },
+            content: { type: "string" },
+            captured_at: { type: "string" },
+            freshness: { type: "string" }
+          }
         }
       }
+    }
+  };
+}
+
+function createCapture(args) {
+  const input = normalizeSourceInput(args);
+  return attachSourceMetadata(createEvidencePack(input), input.sources);
+}
+
+function truthRunInputSchema() {
+  return {
+    type: "object",
+    required: ["sources"],
+    additionalProperties: true,
+    properties: {
+      id: { type: "string" },
+      created_at: { type: "string" },
+      initiative: {
+        type: "object",
+        additionalProperties: true,
+        properties: {
+          name: { type: "string" },
+          owner: { type: "string" },
+          objective: { type: "string" }
+        }
+      },
+      notes: { type: "array", items: { type: "string" } },
+      sources: sourceInputSchema().properties.sources,
+      raw_local_path: { type: "string" }
     }
   };
 }

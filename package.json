@@ -17,7 +17,7 @@
   ],
   "scripts": {
     "test": "node --test",
-    "check": "node --check bin/truth-tools.js && node --check src/cli.js && node --check src/dependencies.js && node --check src/doctor.js && node --check src/exports.js && node --check src/mcp-server.js && node --check src/mcp-tools.js && node --check src/program.js && node --check src/schemas.js && node --check src/updates.js",
+    "check": "node --check bin/truth-tools.js && node --check src/cli.js && node --check src/dependencies.js && node --check src/doctor.js && node --check src/exports.js && node --check src/mcp-server.js && node --check src/mcp-tools.js && node --check src/program.js && node --check src/schemas.js && node --check src/source-normalization.js && node --check src/truth-run.js && node --check src/updates.js",
     "pack:dry-run": "npm pack --dry-run"
   },
   "dependencies": {
