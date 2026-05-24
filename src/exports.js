@@ -7,6 +7,11 @@ const SENSITIVE_PATTERNS = [
   { name: "customer_marker", pattern: /\b(?:customer|client)\s+(?:token|secret|credential|data)\b/i }
 ];
 
+const SENSITIVE_KEYS = [
+  { name: "authorization_header", pattern: /^authorization$/i, valuePattern: /^(?:Basic|Bearer)\s+\S+/i },
+  { name: "secret_assignment", pattern: /^(?:secret|token|password|api[_-]?key)$/i, valuePattern: /\S/ }
+];
+
 export function renderForExportProfile({ artifact, profile = "repo-safe-summary", includeClaims = true } = {}) {
   const exportProfile = assertExportProfile(profile);
   const redaction = checkRedaction(artifact);
@@ -20,34 +25,76 @@ export function renderForExportProfile({ artifact, profile = "repo-safe-summary"
   }
 
   if (exportProfile === "internal-evidence-pack") {
+    const content = renderInternalEvidencePack(artifact);
+    assertSafeExportContent({ profile: exportProfile, content });
     return {
       profile: exportProfile,
       redaction,
-      content: renderInternalEvidencePack(artifact)
+      content
     };
   }
 
+  const content = renderRepoSafeSummary(artifact, { includeClaims });
+  assertSafeExportContent({ profile: exportProfile, content });
   return {
     profile: exportProfile,
     redaction,
-    content: renderRepoSafeSummary(artifact, { includeClaims })
+    content
   };
 }
 
 export function checkRedaction(value) {
-  const text = JSON.stringify(value ?? {});
-  const blockedTerms = [];
+  const blockedTerms = new Set();
 
-  for (const item of SENSITIVE_PATTERNS) {
-    if (item.pattern.test(text)) {
-      blockedTerms.push(item.name);
-    }
-  }
+  inspectForSensitiveTerms(value, blockedTerms);
 
   return {
-    ok: blockedTerms.length === 0,
-    blocked_terms: blockedTerms
+    ok: blockedTerms.size === 0,
+    blocked_terms: Array.from(blockedTerms)
   };
+}
+
+export function assertSafeExportContent({ profile = "repo-safe-summary", content } = {}) {
+  const redaction = checkRedaction(content);
+  if (!redaction.ok) {
+    throw new Error(`Unsafe ${profile} export blocked: ${redaction.blocked_terms.join(", ")}`);
+  }
+  return redaction;
+}
+
+function inspectForSensitiveTerms(value, blockedTerms, key = "") {
+  if (typeof value === "string") {
+    inspectSensitiveKeyValue(key, value, blockedTerms);
+    inspectSensitiveText(value, blockedTerms);
+    return;
+  }
+
+  if (Array.isArray(value)) {
+    for (const entry of value) inspectForSensitiveTerms(entry, blockedTerms);
+    return;
+  }
+
+  if (!value || typeof value !== "object") return;
+
+  for (const [entryKey, entryValue] of Object.entries(value)) {
+    inspectForSensitiveTerms(entryValue, blockedTerms, entryKey);
+  }
+}
+
+function inspectSensitiveText(text, blockedTerms) {
+  for (const item of SENSITIVE_PATTERNS) {
+    if (item.pattern.test(text)) {
+      blockedTerms.add(item.name);
+    }
+  }
+}
+
+function inspectSensitiveKeyValue(key, value, blockedTerms) {
+  for (const item of SENSITIVE_KEYS) {
+    if (item.pattern.test(key) && item.valuePattern.test(value)) {
+      blockedTerms.add(item.name);
+    }
+  }
 }
 
 function renderRepoSafeSummary(artifact = {}, { includeClaims = true } = {}) {

@@ -5,7 +5,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { runDoctor } from "../src/doctor.js";
-import { renderForExportProfile } from "../src/exports.js";
+import { checkRedaction, renderForExportProfile } from "../src/exports.js";
 import { callTruthTool, listTruthTools } from "../src/mcp-tools.js";
 import { reconcileProgram } from "../src/program.js";
 import { normalizeConflict, normalizeTimelineItem, PROGRAM_STATUS_SECTIONS } from "../src/schemas.js";
@@ -168,6 +168,31 @@ test("repo-safe export omits raw source bodies and flags secrets", () => {
   assert.match(rendered.content, /Launch date is conflicting/);
   assert.doesNotMatch(rendered.content, /abc123/);
   assert.equal(rendered.redaction.blocked_terms.length > 0, true);
+});
+
+test("repo-safe export blocks sensitive rendered fields", () => {
+  assert.throws(
+    () =>
+      renderForExportProfile({
+        artifact: {
+          kind: "evidence_pack",
+          conflicts: [{ claim: "Authorization: Bearer secret-token" }],
+          assumptions: ["token: secret-token"]
+        },
+        profile: "repo-safe-summary"
+      }),
+    /Unsafe repo-safe-summary export blocked.*authorization_header/
+  );
+});
+
+test("redaction detects JSON-shaped secret keys", () => {
+  const redaction = checkRedaction({
+    headers: { Authorization: "Bearer secret-token" },
+    token: "secret-token"
+  });
+
+  assert.equal(redaction.ok, false);
+  assert.deepEqual(redaction.blocked_terms.sort(), ["authorization_header", "secret_assignment"]);
 });
 
 test("doctor verifies install, schema, render, and MCP surface", () => {
