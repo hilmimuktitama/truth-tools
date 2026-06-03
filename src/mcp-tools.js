@@ -147,7 +147,10 @@ function renderCapture(args) {
 function normalizeTimelineResult(result) {
   return {
     ...result,
-    timeline: normalizeTimeline(result.timeline)
+    timeline: normalizeTimeline({
+      ...result.timeline,
+      diagnostics: result.diagnostics ?? result.timeline?.diagnostics
+    })
   };
 }
 
@@ -179,6 +182,7 @@ function sourceInputSchema() {
             id: { type: "string" },
             type: { type: "string", enum: ["text", "markdown", "csv", "json"] },
             profile: { type: "string", enum: SOURCE_PROFILES },
+            source_system: { type: "string", enum: ["jira", "confluence", "notion", "local", "csv", "markdown", "json", "unknown"] },
             content: { type: "string" },
             captured_at: { type: "string" },
             freshness: { type: "string" }

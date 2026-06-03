@@ -10,6 +10,12 @@ export function reconcileProgram({ evidence_pack: evidencePack = {}, timeline = 
     ...normalizeEvidenceConflicts(evidencePack.conflicts),
     ...normalizeTimelineConflicts(timeline.issues)
   ];
+  const readinessReasons = buildReadinessReasons({
+    claims,
+    timelineGaps,
+    conflicts,
+    evidenceDiagnostics: evidencePack.diagnostics
+  });
 
   const status = normalizeProgramStatus({
     confirmed_facts: claims.filter(isConfirmedFact).map(claimToStatusItem),
@@ -23,6 +29,7 @@ export function reconcileProgram({ evidence_pack: evidencePack = {}, timeline = 
       }))
     ],
     conflicts,
+    readiness_reasons: readinessReasons,
     assumptions: [
       ...normalizeStrings(evidencePack.assumptions),
       ...normalizeStrings(timeline.assumptions),
@@ -48,6 +55,64 @@ export function reconcileProgram({ evidence_pack: evidencePack = {}, timeline = 
     risks: dedupeStatusItems(status.risks),
     unknowns: dedupeStatusItems(status.unknowns)
   };
+}
+
+function buildReadinessReasons({ claims, timelineGaps, conflicts, evidenceDiagnostics }) {
+  const reasons = [];
+
+  for (const claim of claims) {
+    if (isBlocker(claim)) {
+      reasons.push({
+        type: "blocker_claim",
+        severity: "blocking",
+        claim: claimText(claim),
+        source_refs: claim.source_refs ?? []
+      });
+    } else if (isRisk(claim)) {
+      reasons.push({
+        type: "risk_claim",
+        severity: "warning",
+        claim: claimText(claim),
+        source_refs: claim.source_refs ?? []
+      });
+    } else if (isUnknown(claim)) {
+      reasons.push({
+        type: "unknown_claim",
+        severity: "review",
+        claim: claimText(claim),
+        source_refs: claim.source_refs ?? []
+      });
+    }
+  }
+
+  for (const gap of timelineGaps) {
+    reasons.push({
+      type: "timeline_gap",
+      severity: ["start", "end", "exact_date", "owner"].includes(gap.field) ? "blocking" : "review",
+      claim: `${gap.itemTitle ?? "Timeline item"}: ${gap.question ?? gap.field ?? "unknown"}`,
+      source_refs: gap.source_refs ?? []
+    });
+  }
+
+  for (const conflict of conflicts) {
+    reasons.push({
+      type: "unresolved_conflict",
+      severity: "blocking",
+      claim: conflict.claim,
+      recommended_owner_action: conflict.recommended_owner_action
+    });
+  }
+
+  for (const issue of evidenceDiagnostics?.source_quality?.issues ?? []) {
+    reasons.push({
+      type: issue.type,
+      severity: issue.type === "no_claims_extracted" ? "blocking" : "review",
+      claim: issue.message,
+      source_id: issue.source_id
+    });
+  }
+
+  return dedupeReadinessReasons(reasons);
 }
 
 function normalizeEvidenceConflicts(conflicts = []) {
@@ -221,6 +286,20 @@ function dedupeStatusItems(values = []) {
   for (const value of values) {
     const key = String(value.claim ?? value.text ?? value).trim().toLowerCase();
     if (!key || seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(value);
+  }
+
+  return deduped;
+}
+
+function dedupeReadinessReasons(values = []) {
+  const seen = new Set();
+  const deduped = [];
+
+  for (const value of values) {
+    const key = [value.type, value.severity, value.claim, value.source_id].map((entry) => String(entry ?? "").trim().toLowerCase()).join("|");
+    if (!key.trim() || seen.has(key)) continue;
     seen.add(key);
     deduped.push(value);
   }

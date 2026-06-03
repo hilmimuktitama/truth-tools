@@ -8,6 +8,7 @@ export const SOURCE_PROFILES = [
   "meeting_note",
   "unknown"
 ];
+const SOURCE_SYSTEMS = new Set(["jira", "confluence", "notion", "local", "csv", "markdown", "json", "unknown"]);
 
 const METADATA_LINE_PATTERN = /^(?:generated|timezone|time\s*zone|package|version|created|updated|last\s+updated)\s*:/i;
 const PROJECT_HEADER_PATTERN = /^project\s*:\s*(.+)$/i;
@@ -93,6 +94,7 @@ function normalizeSource(source = {}, index, capturedAt, { forTimeline }) {
     id,
     type,
     profile,
+    source_system: normalizeSourceSystem(source.source_system ?? source.sourceSystem ?? defaultSourceSystem(source, type)),
     adapter: stringOr(source.adapter, defaultAdapter(source)),
     captured_at: stringOr(source.captured_at, capturedAt),
     freshness: stringOr(source.freshness, "unknown"),
@@ -280,6 +282,20 @@ function defaultAdapter(source = {}) {
   if (source.url) return "url";
   if (source.path || source.file_path || source.filePath) return "local-file";
   return "direct";
+}
+
+function normalizeSourceSystem(value) {
+  const normalized = String(value ?? "unknown").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_");
+  return SOURCE_SYSTEMS.has(normalized) ? normalized : "unknown";
+}
+
+function defaultSourceSystem(source = {}, type = "text") {
+  if (source.url && String(source.url).includes("atlassian.net/wiki/")) return "confluence";
+  if (source.url && String(source.url).includes("atlassian.net/")) return "jira";
+  if (source.url && /notion\.(?:so|site)\//i.test(source.url)) return "notion";
+  if (source.path) return "local";
+  if (["csv", "markdown", "json"].includes(type)) return type;
+  return "unknown";
 }
 
 function slugify(value) {

@@ -38,7 +38,10 @@ export function runTruthReview(input = {}) {
 
   const timelineStep = startStep("timeline", "Create evidence timeline", "timeline.create", createdAt);
   const timelineResult = createTimeline(normalizeSourceInput({ ...input, captured_at: createdAt, sources }, { forTimeline: true }));
-  const timeline = normalizeTimeline(timelineResult.timeline ?? timelineResult);
+  const timeline = normalizeTimeline({
+    ...(timelineResult.timeline ?? timelineResult),
+    diagnostics: timelineResult.diagnostics ?? timelineResult.timeline?.diagnostics
+  });
   const timelineValidation = validateTimeline(timeline);
   completeStep(timelineStep, createdAt);
   agentSteps.push(timelineStep);
@@ -83,6 +86,8 @@ export function runTruthReview(input = {}) {
   });
 
   return {
+    kind: "truth_run",
+    schema_version: "0.2.0",
     id,
     created_at: createdAt,
     initiative,
@@ -182,11 +187,18 @@ function summarizeRun({ sources, evidencePack, evidenceValidation, timeline, tim
 function evaluateQuality({ sources, evidenceValidation, timeline, timelineValidation, programStatus }) {
   const warnings = [];
   const blockingGaps = [];
+  const reasons = [];
 
   for (const source of sources) {
     if (!source.profile || source.profile === "unknown") {
       warnings.push({
         type: "source_profile_missing",
+        source_id: source.id,
+        message: `Source '${source.id}' has no agent source profile.`
+      });
+      reasons.push({
+        type: "source_profile_missing",
+        severity: "warning",
         source_id: source.id,
         message: `Source '${source.id}' has no agent source profile.`
       });
@@ -197,29 +209,60 @@ function evaluateQuality({ sources, evidenceValidation, timeline, timelineValida
         profile: source.profile,
         message: `Source '${source.id}' uses unsupported profile '${source.profile}'.`
       });
+      reasons.push({
+        type: "source_profile_unsupported",
+        severity: "warning",
+        source_id: source.id,
+        profile: source.profile,
+        message: `Source '${source.id}' uses unsupported profile '${source.profile}'.`
+      });
     }
   }
 
   for (const gap of [...arrayOf(timeline.gaps), ...arrayOf(timelineValidation.gaps)]) {
     if (!["start", "end", "exact_date", "owner"].includes(gap.field)) continue;
-    blockingGaps.push({
+    const reason = {
       type: "timeline_gap",
+      severity: "blocking",
       item_title: gap.itemTitle,
       field: gap.field,
       question: gap.question
-    });
+    };
+    blockingGaps.push(reason);
+    reasons.push(reason);
   }
 
   for (const gap of arrayOf(evidenceValidation.gaps)) {
     if (!["missing_source_identity", "missing_captured_at", "duplicate_source_id"].includes(gap.type)) continue;
-    blockingGaps.push({
+    const reason = {
       type: gap.type,
+      severity: "blocking",
       source_id: gap.source_id,
       question: gap.message
+    };
+    blockingGaps.push(reason);
+    reasons.push(reason);
+  }
+
+  for (const issue of arrayOf(evidenceValidation.diagnostics?.source_quality?.issues)) {
+    if (!["missing_freshness", "stale_source", "access_caveat", "no_claims_extracted"].includes(issue.type)) continue;
+    reasons.push({
+      type: issue.type,
+      severity: issue.type === "no_claims_extracted" ? "blocking" : "warning",
+      source_id: issue.source_id,
+      message: issue.message
     });
   }
 
   const conflicts = countArray(programStatus.conflicts);
+  if (conflicts > 0) {
+    reasons.push({
+      type: "unresolved_conflicts",
+      severity: "blocking",
+      count: conflicts,
+      message: "Program status has unresolved conflicts that need owner reconciliation."
+    });
+  }
   const readiness = conflicts > 0 || blockingGaps.some((gap) => gap.type === "missing_source_identity")
     ? "blocked"
     : blockingGaps.length > 0 || warnings.length > 0
@@ -233,6 +276,9 @@ function evaluateQuality({ sources, evidenceValidation, timeline, timelineValida
     ),
     warnings: dedupeBy(warnings, (warning) =>
       [warning.type, warning.source_id, warning.profile].map((value) => String(value ?? "").toLowerCase()).join("|")
+    ),
+    reasons: dedupeBy(reasons, (reason) =>
+      [reason.type, reason.severity, reason.item_title, reason.source_id, reason.field, reason.message, reason.question].map((value) => String(value ?? "").toLowerCase()).join("|")
     )
   };
 }

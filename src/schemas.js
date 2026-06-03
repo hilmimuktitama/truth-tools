@@ -1,11 +1,14 @@
 export const EXPORT_PROFILES = ["repo-safe-summary", "internal-evidence-pack", "raw-local-only"];
 
 export const PROGRAM_STATUS_SECTIONS = [
+  "kind",
+  "schema_version",
   "confirmed_facts",
   "blockers",
   "risks",
   "unknowns",
   "conflicts",
+  "readiness_reasons",
   "assumptions",
   "recommended_write_back"
 ];
@@ -50,11 +53,14 @@ export function normalizeTimeline(timeline = {}) {
 
 export function normalizeProgramStatus(status = {}) {
   return {
+    kind: status.kind || "program_status",
+    schema_version: status.schema_version || "0.2.0",
     confirmed_facts: normalizeArray(status.confirmed_facts),
     blockers: normalizeArray(status.blockers),
     risks: normalizeArray(status.risks),
     unknowns: normalizeArray(status.unknowns),
     conflicts: normalizeArray(status.conflicts).map(normalizeConflict),
+    readiness_reasons: normalizeArray(status.readiness_reasons),
     assumptions: normalizeArray(status.assumptions),
     recommended_write_back: {
       repo: normalizeArray(status.recommended_write_back?.repo),

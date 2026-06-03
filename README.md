@@ -10,6 +10,8 @@
 
 It keeps the existing packages focused and exposes one consistent CLI and MCP-oriented callable surface for benchmarking and TPM review workflows. Requires Node.js `>=22`.
 
+Use this package first for general workflows. The focused packages remain useful when you only need one layer: `capture-truth` for evidence intake, `timeline-truth` for timeline compilation, and `program-truth` for agent workflow/bootstrap guidance.
+
 ## Mental Model
 
 `truth-tools` gives AI agents one evidence-first workflow instead of separate setup for capture, timeline, and program status work.

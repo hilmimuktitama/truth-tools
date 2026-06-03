@@ -31,7 +31,14 @@ test("truth.run returns a canonical artifact and repo-safe summary without sourc
   assert.equal(run.sources.every((source) => source.content === undefined), true);
   assert.equal(run.raw_local_policy.mode, "raw-local-only");
   assert.equal(run.quality.readiness, "needs_review");
+  assert.equal(Array.isArray(run.quality.reasons), true);
+  assert.equal(run.quality.reasons.some((reason) => reason.type === "timeline_gap"), true);
   assert.equal(run.quality.blocking_gaps.some((gap) => gap.field === "owner"), true);
+  assert.equal(run.artifacts.evidence_pack.schema_version, "0.2.0");
+  assert.equal(Array.isArray(run.artifacts.evidence_pack.diagnostics.sources), true);
+  assert.equal(run.artifacts.timeline.schema_version, "0.2.0");
+  assert.equal(Array.isArray(run.artifacts.timeline.diagnostics.sources), true);
+  assert.equal(Array.isArray(run.artifacts.program_status.readiness_reasons), true);
   assert.equal(run.artifacts.timeline.items.some((item) => item.title === "Atlas MCP need to be delivered"), true);
   assert.equal(
     run.artifacts.timeline.items.find((item) => item.title === "Atlas MCP need to be delivered")?.start,
