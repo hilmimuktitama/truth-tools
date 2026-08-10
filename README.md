@@ -1,410 +1,220 @@
 # Truth Tools
 
-> Work in progress: this repository is still experimental and the public CLI/MCP contract may change while the truth workflow is being validated.
+[![CI](https://github.com/hilmimuktitama/truth-tools/actions/workflows/ci.yml/badge.svg)](https://github.com/hilmimuktitama/truth-tools/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-`truth-tools` is the unified entrypoint for three truth packages:
+> **Release status:** This branch contains the proposed `0.3.0` breaking reset. npm currently serves `0.2.0`, which still exposes the older umbrella workflow, so use this branch checkout until the reset is merged and released.
 
-- [`capture-truth`](https://github.com/hilmimuktitama/capture-truth) for evidence intake
-- [`program-truth`](https://github.com/hilmimuktitama/program-truth) for program reconciliation
-- [`timeline-truth`](https://github.com/hilmimuktitama/timeline-truth) for timeline compilation and validation
 
-It keeps the existing packages focused and exposes one consistent CLI and MCP-oriented callable surface for benchmarking and TPM review workflows. Requires Node.js `>=22`.
+Truth Tools audits the evidence structure of a project-status report before you send it.
 
-Use this package first for general workflows. The focused packages remain useful when you only need one layer: `capture-truth` for evidence intake, `timeline-truth` for timeline compilation, and `program-truth` for agent workflow/bootstrap guidance.
+It checks four things deterministically:
 
-## Mental Model
+1. every claim cites a known source record;
+2. source records are recent enough for your policy;
+3. claims about the same subject do not disagree;
+4. blockers, risks, and unknowns remain explicit.
 
-`truth-tools` gives AI agents one evidence-first workflow instead of separate setup for capture, timeline, and program status work.
+It does **not** read source bodies or decide what is true. An agent, adapter, or human supplies structured claims and citations. Truth Tools checks whether that artifact has an obvious evidence gap or contradiction.
 
-```mermaid
-flowchart LR
-  A["Raw sources<br/>notes, files, CSV, JSON, compact system records"] --> B["capture.create<br/>preserve evidence and source_refs"]
-  B --> C["capture.validate<br/>surface metadata gaps and conflicts"]
-  C --> D["timeline.create<br/>compile dated and uncertain planning items"]
-  D --> E["timeline.validate<br/>surface missing dates, owners, dependencies"]
-  E --> F["program.reconcile<br/>separate facts, blockers, risks, unknowns, conflicts"]
-  F --> G["repo-safe renders<br/>capture.render and timeline.render"]
-```
+## Why this exists
 
-The boundary is deliberate: the tools preserve evidence, conflicts, unknowns, and recommended owner actions. They do not silently decide source-system truth for the user.
+Project updates often look cleaner than the underlying evidence. A parent ticket says green, a decision log names another date, a meeting note has an unresolved blocker, and the final status quietly picks whichever version is convenient.
 
-## Easy Way: Ask Your AI Agent
-
-If your AI agent supports MCP, ask it to install, verify, and smoke-test `truth-tools` for you.
-
-Give your AI agent this prompt:
+Truth Tools is the deterministic gate after evidence collection and before publication:
 
 ```text
-Let's use truth-tools from https://github.com/hilmimuktitama/truth-tools.
-
-Please inspect the README, confirm this machine has Node.js >=22, and configure an MCP server named truth-tools.
-
-Prefer the npm package setup:
-
-{
-  "mcpServers": {
-    "truth-tools": {
-      "command": "npx",
-      "args": ["-y", "--package=truth-tools", "truth-tools-mcp"]
-    }
-  }
-}
-
-If npm setup is unavailable, use a local checkout fallback: clone the GitHub repo, run npm install, and configure the MCP server with command node and args pointing to C:/path/to/truth-tools/src/mcp-server.js.
-
-Reload or restart the MCP client if needed. Verify setup by calling the MCP tool doctor.all with { "all": true }. If MCP verification is not available yet, run:
-
-npx -y --package=truth-tools truth-tools doctor --all
-
-Then smoke-test the MCP server:
-1. Call capture.create with one text source.
-2. Call capture.validate with the returned evidence_pack.
-3. Call capture.render with export_profile set to repo-safe-summary.
-4. Call timeline.create with one planning source.
-5. Call timeline.validate with the returned timeline.
-6. Call timeline.render with export_profile set to repo-safe-summary.
-7. Call program.reconcile with the evidence_pack, timeline, and a short notes array.
-
-Do not infer missing dates, ownership, status, risk, or source-system truth. Preserve conflicts and unknowns, and default repo artifacts to repo-safe-summary.
+Jira / docs / notes
+        |
+        v
+agent or adapter creates status.json
+        |
+        v
+Truth Tools review
+        |
+        +---- Markdown review for humans
+        +---- JSON result for automation
+        +---- exit code for CI
 ```
 
-Once your agent confirms the MCP server works, give it source material and ask it to capture evidence, compile a timeline, reconcile program status, and render only repo-safe artifacts.
+It is useful before a weekly status update, release-readiness review, leadership memo, or generated program artifact is published.
 
-### Manual MCP Config
+## Quick start
 
-Npm package config:
+Requires Node.js 22 or newer. Run the checked-in example from a checkout:
+
+```bash
+git clone --branch agent/simplify-truth-tools --single-branch \
+  https://github.com/hilmimuktitama/truth-tools.git
+cd truth-tools
+npm install
+npm run example
+```
+
+The example deliberately contains a conflicting launch date and an ownerless blocker, so the result is `blocked`.
+
+See the [generated report](examples/product-launch-report.md), the [portfolio case study](docs/portfolio.md), and the [product/code review that drove the reset](docs/product-review.md).
+
+After `0.3.0` is published, the package command will be:
+
+```bash
+npm exec --yes --package truth-tools@0.3.0 -- \
+  truth-tools review --input status.json
+```
+
+## Input
+
+Truth Tools accepts source **metadata**, not raw Jira or document bodies. `as_of` is required so the same input produces the same review. `captured_at` means when the cited evidence was observed or snapshotted; it is not automatically the source page's last-modified time. Dates must use `YYYY-MM-DD` or an ISO datetime with `Z`/UTC offset; locale-dependent or timezone-free dates are rejected.
 
 ```json
 {
-  "mcpServers": {
-    "truth-tools": {
-      "command": "npx",
-      "args": ["-y", "--package=truth-tools", "truth-tools-mcp"]
+  "as_of": "2026-08-11T00:00:00.000Z",
+  "initiative": {
+    "name": "Checkout migration",
+    "owner": "Platform TPM"
+  },
+  "policy": {
+    "max_source_age_days": 14
+  },
+  "sources": [
+    {
+      "id": "jira-release",
+      "type": "jira",
+      "url": "https://example.atlassian.net/browse/PLAT-123",
+      "captured_at": "2026-08-10T08:00:00.000Z"
     }
-  }
+  ],
+  "claims": [
+    {
+      "id": "launch-date",
+      "kind": "fact",
+      "subject": "launch.date",
+      "value": "2026-08-20",
+      "text": "Target launch date is August 20, 2026.",
+      "source_refs": ["jira-release"]
+    }
+  ]
 }
 ```
 
-Local development checkout config:
+### Claim kinds
+
+- `fact`: a reported fact with at least one source reference;
+- `blocker`: work that prevents readiness;
+- `risk`: a credible threat with mitigation still needed;
+- `unknown`: a question that remains unresolved.
+
+Classification is explicit. Truth Tools never labels a sentence as a fact just because it does not contain the word “risk” or “blocked.”
+
+### Contradictions
+
+Contradiction checks require a `subject` and scalar `value` pair. Values may be strings, numbers, or booleans. Claims conflict when they share a normalized `subject` but have different typed values.
+
+```json
+{
+  "id": "date-from-decision-log",
+  "kind": "fact",
+  "subject": "launch.date",
+  "value": "2026-08-22",
+  "text": "The decision log records August 22, 2026.",
+  "source_refs": ["decision-log"]
+}
+```
+
+Truth Tools does not choose a winner. It reports the disagreement and asks for owner reconciliation.
+
+## CLI
+
+```bash
+truth-tools review --input status.json
+cat status.json | truth-tools review --format json
+truth-tools review --input status.json --out reports/status.md
+truth-tools review --input status.json --fail-on blocked
+truth-tools review --input status.json --fail-on needs_review
+truth-tools doctor
+truth-tools version
+truth-tools example
+truth-tools --version
+```
+
+Readiness values:
+
+- `ready`: the artifact has current source references, no contradictions, and no open blocker, risk, unknown, or validation issue;
+- `needs_review`: evidence metadata is stale/incomplete, or the artifact has risks or unknowns;
+- `blocked`: there is a blocker, contradiction, invalid citation, duplicate identity, unsupported field/value, or raw source body.
+
+`--fail-on blocked` exits with code `2` only for blocked reviews. `--fail-on needs_review` exits with code `2` for either `needs_review` or `blocked`, which makes the command usable in CI.
+
+## MCP
+
+From a source checkout, configure the stdio server directly:
 
 ```json
 {
   "mcpServers": {
     "truth-tools": {
       "command": "node",
-      "args": ["C:/path/to/truth-tools/src/mcp-server.js"]
+      "args": ["/absolute/path/to/truth-tools/src/mcp-server.js"]
     }
   }
 }
 ```
 
-Use the local config only when developing against a checkout instead of the published npm package.
-
-## First Use
-
-Start with source-shaped JSON. Use the output from each create call as input to the matching validate, render, or reconcile call.
-
-### Evidence Capture Input
-
-Call `capture.create` with:
+After `0.3.0` is published, use the package binary:
 
 ```json
 {
-  "sources": [
-    {
-      "id": "status-note",
-      "type": "text",
-      "path": "notes/status.txt",
-      "captured_at": "2026-05-12T14:00:00Z",
-      "freshness": "fresh",
-      "content": "API contract is blocked by missing owner by 2026-05-20."
+  "mcpServers": {
+    "truth-tools": {
+      "command": "npx",
+      "args": ["-y", "--package=truth-tools@0.3.0", "truth-tools-mcp"]
     }
-  ]
+  }
 }
 ```
 
-Then call `capture.validate` with `{ "evidence_pack": <returned evidence pack> }`, followed by `capture.render` with:
+The server exposes only two read-only tools:
 
-```json
-{
-  "evidence_pack": {
-    "kind": "evidence_pack",
-    "sources": [
-      {
-        "id": "status-note",
-        "type": "text",
-        "captured_at": "2026-05-12T14:00:00Z",
-        "freshness": "fresh",
-        "content": "API contract is blocked by missing owner by 2026-05-20."
-      }
-    ],
-    "claims": [
-      {
-        "id": "claim-1",
-        "text": "API contract is blocked by missing owner by 2026-05-20.",
-        "source_refs": [{ "sourceId": "status-note" }]
-      }
-    ],
-    "gaps": [],
-    "conflicts": [],
-    "assumptions": []
-  },
-  "export_profile": "repo-safe-summary"
-}
+| Tool | Purpose |
+| --- | --- |
+| `truth.review` | Run the deterministic evidence-structure audit. |
+| `truth.doctor` | Smoke-test the installed review contract. |
+
+The small surface is intentional. An agent should make one review call, not orchestrate nine low-level tools correctly.
+
+## Example result
+
+```text
+Readiness: blocked
+Sources: 3
+Claims: 4
+Blockers: 1
+Risks: 1
+Conflicts: 1
+
+P0 Reconcile launch.date: 2026-08-20 vs 2026-08-22.
+P0 Assign an owner and resolution date for the rollback blocker.
+P1 Record mitigation for peak-traffic capacity risk.
 ```
 
-### Timeline Planning Input
+## Trust boundary
 
-Call `timeline.create` with:
+Truth Tools verifies citation integrity, timestamps, explicit classifications, and internal consistency **inside the supplied artifact**. It does not fetch a URL, inspect the external source, or prove that the cited source supports the claim. A fabricated or incorrect source reference can still pass if its metadata is internally valid.
 
-```json
-{
-  "sources": [
-    {
-      "id": "planning-note",
-      "type": "text",
-      "captured_at": "2026-05-12T14:05:00Z",
-      "freshness": "fresh",
-      "content": "Discovery: 2026-06-01 to 2026-06-05 owner PM status planned\nAPI contract: owner Platform depends on Discovery\nLaunch decision milestone on 2026-06-17 owner PM"
-    }
-  ]
-}
-```
-
-Then call `timeline.validate` with `{ "timeline": <returned timeline> }`, followed by `timeline.render` with:
-
-```json
-{
-  "timeline": {
-    "items": [
-      {
-        "title": "Discovery",
-        "type": "task",
-        "start": "2026-06-01",
-        "end": "2026-06-05",
-        "owner": "PM",
-        "status": "planned",
-        "dependencies": [],
-        "source_refs": [{ "sourceId": "planning-note", "line": 1 }]
-      },
-      {
-        "title": "API contract",
-        "type": "task",
-        "date_text": "TBC",
-        "date_status": "tbc",
-        "owner": "Platform",
-        "status": "planned",
-        "dependencies": ["Discovery"],
-        "source_refs": [{ "sourceId": "planning-note", "line": 2 }]
-      }
-    ],
-    "assumptions": ["No dates were inferred."],
-    "gaps": [
-      {
-        "itemTitle": "API contract",
-        "field": "date",
-        "question": "Confirm start and end dates before publishing.",
-        "source_refs": [{ "sourceId": "planning-note", "line": 2 }]
-      }
-    ]
-  },
-  "export_profile": "repo-safe-summary"
-}
-```
-
-### Program Reconciliation Input
-
-Call `program.reconcile` with:
-
-```json
-{
-  "evidence_pack": {
-    "kind": "evidence_pack",
-    "sources": [
-      {
-        "id": "status-note",
-        "type": "text",
-        "captured_at": "2026-05-12T14:00:00Z",
-        "freshness": "fresh",
-        "content": "API contract is blocked by missing owner by 2026-05-20."
-      }
-    ],
-    "claims": [
-      {
-        "id": "claim-1",
-        "text": "API contract is blocked by missing owner by 2026-05-20.",
-        "source_refs": [{ "sourceId": "status-note" }]
-      }
-    ],
-    "conflicts": [
-      {
-        "claim": "Launch decision date",
-        "source_a": { "system": "planning-note", "value": "2026-06-17" },
-        "source_b": { "system": "jira", "value": "2026-06-20" },
-        "conflict_type": "date_mismatch"
-      }
-    ],
-    "assumptions": ["No source was treated as automatically authoritative."]
-  },
-  "timeline": {
-    "items": [
-      {
-        "title": "API contract",
-        "date_text": "TBC",
-        "date_status": "tbc",
-        "owner": "Platform",
-        "source_refs": [{ "sourceId": "planning-note", "line": 2 }]
-      }
-    ],
-    "gaps": [
-      {
-        "itemTitle": "API contract",
-        "field": "date",
-        "question": "Confirm start and end dates before publishing.",
-        "source_refs": [{ "sourceId": "planning-note", "line": 2 }]
-      }
-    ],
-    "assumptions": ["No dates were inferred."]
-  },
-  "notes": [
-    "Treat this as a draft until owners reconcile source-system date conflicts."
-  ]
-}
-```
-
-The returned program status separates confirmed facts, blockers, risks, unknowns, conflicts, assumptions, and write-back recommendations.
-
-## Agent Operating Rules
-
-- Validate before rendering: `capture.validate` after `capture.create`, and `timeline.validate` after `timeline.create`.
-- Default repo artifacts to `repo-safe-summary`.
-- Preserve conflicts and unknowns instead of resolving them silently.
-- Do not infer missing dates, ownership, status, risk, or source-system truth.
-- Never commit `raw-local-only` output.
-- Keep raw Jira, Confluence, customer, credential, or private operational data outside committed repo paths.
-
-## MCP Tools
-
-The MCP server exposes these dotted tool names:
-
-| Tool | Required top-level args | Purpose | Recommended next call |
-| --- | --- | --- | --- |
-| `truth.run` | `sources` | Run the full agent-first truth review contract and return a canonical `truth_run` artifact. | Review `quality`, `repo_safe_summary`, and raw-local policy. |
-| `doctor.all` | none (`all` is optional) | Smoke-test install, schemas, render path, and MCP tool surface. | Start first-use flow. |
-| `capture.create` | `sources` | Create an evidence pack from pasted, local, or adapter-produced sources. | `capture.validate` |
-| `capture.validate` | `evidence_pack` | Validate source metadata, freshness, references, and conflicts. | `capture.render` |
-| `capture.render` | `evidence_pack` | Render evidence using a repo-safe, internal, or raw-local export profile. | `program.reconcile` |
-| `timeline.create` | `sources` | Create a normalized evidence-preserving timeline from planning sources. | `timeline.validate` |
-| `timeline.validate` | `timeline` | Validate unknowns, missing fields, and dependency issues. | `timeline.render` |
-| `timeline.render` | `timeline` | Render a timeline as Mermaid, Markdown, or export-profile-safe summary. | `program.reconcile` |
-| `program.reconcile` | none; usually `evidence_pack`, `timeline`, and `notes` | Reconcile captured evidence and timelines into a standard program-status object. | Render repo-safe artifacts for review. |
-
-## CLI Usage
-
-```bash
-truth-tools doctor --all
-
-truth-tools truth run --input run-input.json --out .truth-tools/runs/<run-id>
-
-truth-tools capture create --input intake.json
-truth-tools capture validate --input evidence-pack.json
-truth-tools capture render --export-profile repo-safe-summary --input evidence-pack.json
-
-truth-tools program reconcile --input program-input.json
-
-truth-tools timeline create --input intake.json
-truth-tools timeline validate --input timeline.json
-truth-tools timeline render --format markdown --input timeline.json
-truth-tools timeline render --export-profile repo-safe-summary --input timeline.json
-```
-
-`truth run` is the preferred agent-facing path. It runs capture, timeline creation, program reconciliation, quality checks, and repo-safe rendering, then returns a canonical `truth_run` artifact. Source `profile` is optional but recommended; supported values are `status_note`, `estimate_table`, `objective_table`, `progress_table`, `timeline_note`, `decision_log`, `meeting_note`, and `unknown`.
-
-## Doctor
-
-`truth-tools doctor --all` checks:
-
-- local install and runtime truth package availability
-- shared conflict, timeline unknown, and program-status schemas
-- repo-safe render path
-- MCP tool-surface availability
-
-Use `truth-tools doctor --all --no-update-check` for CI or offline runs.
-
-## Conflict Schema
-
-Conflicts are normalized as:
-
-```json
-{
-  "claim": "Real-client rollout start date",
-  "source_a": { "system": "local-note", "value": "2026-05-27" },
-  "source_b": { "system": "jira", "value": "2026-06-02" },
-  "conflict_type": "date_mismatch",
-  "recommended_owner_action": "Assign an owner to reconcile the source disagreement and update the system of record."
-}
-```
-
-## Timeline Unknowns
-
-Timeline items carry explicit uncertainty:
-
-```json
-{
-  "title": "Phase 2 rollout",
-  "date_status": "tbc",
-  "blocks_next_milestone": "unknown"
-}
-```
-
-Supported `date_status` values:
-
-- `exact`
-- `range`
-- `earliest`
-- `tbc`
-- `conflicting`
-
-Supported `blocks_next_milestone` values:
-
-- `true`
-- `false`
-- `unknown`
-
-## Program Status Schema
-
-`program.reconcile` returns:
-
-- `confirmed_facts`
-- `blockers`
-- `risks`
-- `unknowns`
-- `conflicts`
-- `assumptions`
-- `recommended_write_back`
-
-`recommended_write_back` separates what belongs in the repo, what belongs in `.tmp/`, and what needs source-system updates.
-
-## Export Profiles
-
-`repo-safe-summary` is the default safety posture for TPM repos. It omits raw source bodies and favors compact facts, gaps, conflicts, and owner actions.
-
-`internal-evidence-pack` keeps structured evidence metadata but redacts raw `content` fields before rendering.
-
-`raw-local-only` returns the full artifact and should stay local. Do not commit raw Jira, Confluence, customer, credential, or private operational data.
-
-All render paths run a redaction check for common credential and sensitive-data markers.
-
-## Update Checks
-
-`truth-tools doctor --all` checks npm for newer versions of `truth-tools`, `capture-truth`, and `timeline-truth`.
-
-Use `truth-tools doctor --all --no-update-check` for CI or offline runs.
+It deliberately rejects raw `content`, `body`, `raw`, and `raw_content` fields. Keep confidential source bodies in their systems of record. Claim text is exported verbatim, so it must not contain credentials or confidential source bodies.
 
 ## Development
 
 ```bash
+npm install
 npm test
 npm run check
 npm pack --dry-run
 ```
+
+The test suite covers valid and invalid citations, stale and future-dated evidence, strict date parsing, typed contradiction values, unsupported fields, explicit claim classification, raw-body rejection, Markdown rendering, CLI output, MCP output, and CI exit codes.
+
+## Portfolio summary
+
+> Built a deterministic CLI and MCP gate that audits generated project-status artifacts for citation integrity, stale source metadata, typed contradictions, blockers, risks, and unresolved unknowns, with Markdown/JSON output and CI-enforceable readiness states.
+
+MIT licensed.

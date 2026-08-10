@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm test
+      - run: npm run check
+      - run: node bin/truth-tools.js doctor
+      - name: Verify the documented blocked example
+        shell: bash
+        run: |
+          set +e
+          node bin/truth-tools.js review \
+            --input examples/product-launch.json \
+            --format json \
+            --fail-on blocked > /tmp/truth-tools-example.json
+          code=$?
+          set -e
+          test "$code" -eq 2
+          grep -q '"readiness": "blocked"' /tmp/truth-tools-example.json
+      - run: npm pack --dry-run
