@@ -105,7 +105,7 @@ export async function loadSiblings() {
       import(urls.diff.href)
     ]);
     const program = readJsonFile(urls.program);
-    if (typeof capture.captureSources !== "function" || typeof timelineMod.createTimeline !== "function" ||
+    if (typeof capture.createEvidencePack !== "function" || typeof timelineMod.createTimeline !== "function" ||
         typeof diffMod.diffTimelines !== "function" || !program) throw new Error("incompatible Truth Suite sibling");
     return { mode: "live", capture, timelineMod, diffMod, program };
   } catch (error) {
@@ -114,6 +114,25 @@ export async function loadSiblings() {
     if (!TRUTH_DEMO.sibling) throw new Error("checked-in sibling fixture projection is missing");
     return { mode: "fixture", sibling: structuredClone(TRUTH_DEMO.sibling), reason: "live Truth Suite siblings unavailable; using checked-in fixture projection" };
   }
+}
+
+function candidateClaims(result) {
+  if (!Array.isArray(result?.candidate_claims) ||
+      result.candidate_claims.some((claim) => claim.review_status !== "unreviewed")) {
+    throw new Error("incompatible Capture Truth evidence pack: candidate claims must be unreviewed");
+  }
+  return result.candidate_claims;
+}
+
+function normalizeSiblingProjection(sibling) {
+  return {
+    ...sibling,
+    capture: {
+      ...sibling.capture,
+      candidate_claims: candidateClaims(sibling.capture),
+      diagnostics: sibling.capture.diagnostics ?? {}
+    }
+  };
 }
 
 function programTimestamp(value, fallback = DEMO_AS_OF) {
@@ -194,13 +213,13 @@ export function mapProgramArtifact(program) {
 export async function siblingSections() {
   const siblings = await loadSiblings();
   lastSiblingMode = siblings.mode;
-  if (siblings.mode === "fixture") return siblings.sibling;
+  if (siblings.mode === "fixture") return normalizeSiblingProjection(siblings.sibling);
   const { capture, timelineMod, diffMod, program } = siblings;
   const fixed = readJson("evidence-pack.json");
   const baseline = readJson("baseline-plan.json");
   const current = readJson("current-plan.json");
 
-  const captureResult = capture.captureSources({
+  const captureResult = capture.createEvidencePack({
     sources: fixed.sources,
     now: () => new Date(DEMO_AS_OF)
   });
@@ -226,8 +245,9 @@ export async function siblingSections() {
         // boolean raw_included; the body itself never travels in this demo.
         raw_included: source.raw_included
       })),
-      claims: captureResult.claims,
-      summary: captureResult.summary
+       candidate_claims: candidateClaims(captureResult),
+       diagnostics: captureResult.diagnostics,
+       summary: captureResult.summary
     },
     timeline: timelineResult.timeline,
     diff: diffResult,
@@ -235,7 +255,7 @@ export async function siblingSections() {
   };
 }
 
-async function demoPayload() {
+export async function demoPayload() {
   const broken = readJson("status-artifact-broken.json");
   const fixed = readJson("evidence-pack.json");
   const baseline = readJson("baseline-plan.json");
@@ -326,9 +346,10 @@ export async function runDemo({ write = false, verbose = true } = {}) {
   if (sibling) {
     step(
       "sibling:capture-sources",
-      sibling.capture.kind === "capture_truth_capture" &&
-        sibling.capture.summary.sources === fixedArtifact.sources.length,
-      `capture-truth normalized ${sibling.capture.summary.sources} evidence-pack sources`
+       sibling.capture.kind === "capture_truth_evidence_pack" &&
+         sibling.capture.summary.source_count === fixedArtifact.sources.length &&
+         sibling.capture.candidate_claims.every((claim) => claim.review_status === "unreviewed"),
+       `capture-truth normalized ${sibling.capture.summary.source_count} evidence-pack sources with unreviewed candidate claims`
     );
     step(
       "sibling:capture-raw-inclusion-state",

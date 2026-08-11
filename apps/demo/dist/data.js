@@ -1540,8 +1540,8 @@ export const TRUTH_DEMO = {
   "driftMarkdown": "# Timeline Drift\n\n**Baseline:** 4 items — **Current:** 5 items — **Added:** 1 — **Removed:** 0 — **Changed:** 4 — **Unchanged:** 0\n\n### Added\n\n- **Rollback owner named** (2026-08-12, planned)\n\n### Removed\n\n- None.\n\n### Changed\n\n- **Rollback drill complete:** status planned -> done\n- **Load test at 200% peak:** start 2026-08-03 -> 2026-08-14; end 2026-08-03 -> 2026-08-14; status planned -> in_progress\n- **Release freeze:** status planned -> done\n- **Launch:** start 2026-08-17 -> 2026-08-20; end 2026-08-17 -> 2026-08-20\n",
   "sibling": {
     "capture": {
-      "kind": "capture_truth_capture",
-      "schema_version": "0.1.0",
+      "kind": "capture_truth_evidence_pack",
+      "schema_version": "0.4.0",
       "generated_at": "2026-08-11T00:00:00.000Z",
       "sources": [
         {
@@ -1549,7 +1549,7 @@ export const TRUTH_DEMO = {
           "type": "jira",
           "observed_at": "2026-08-10T08:00:00.000Z",
           "locator": "https://example.atlassian.net/browse/PLAT-123",
-          "content_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "content_hash": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
           "raw_included": false
         },
         {
@@ -1557,7 +1557,7 @@ export const TRUTH_DEMO = {
           "type": "jira",
           "observed_at": "2026-08-10T09:00:00.000Z",
           "locator": "https://example.atlassian.net/browse/PLAT-124",
-          "content_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "content_hash": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
           "raw_included": false
         },
         {
@@ -1565,7 +1565,7 @@ export const TRUTH_DEMO = {
           "type": "decision-log",
           "observed_at": "2026-08-09T14:00:00.000Z",
           "locator": "https://example.com/decisions/checkout-launch",
-          "content_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "content_hash": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
           "raw_included": false
         },
         {
@@ -1573,16 +1573,42 @@ export const TRUTH_DEMO = {
           "type": "meeting-note",
           "observed_at": "2026-08-08T09:00:00.000Z",
           "locator": "https://example.com/notes/risk-review",
-          "content_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+          "content_hash": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
           "raw_included": false
         }
       ],
-      "claims": [],
+      "candidate_claims": [],
+      "diagnostics": [
+        {
+          "type": "missing_locator",
+          "severity": "warning",
+          "source_id": "jira-release",
+          "message": "locator was not supplied; a stable fallback was used."
+        },
+        {
+          "type": "missing_locator",
+          "severity": "warning",
+          "source_id": "jira-rollback",
+          "message": "locator was not supplied; a stable fallback was used."
+        },
+        {
+          "type": "missing_locator",
+          "severity": "warning",
+          "source_id": "decision-log",
+          "message": "locator was not supplied; a stable fallback was used."
+        },
+        {
+          "type": "missing_locator",
+          "severity": "warning",
+          "source_id": "risk-review",
+          "message": "locator was not supplied; a stable fallback was used."
+        }
+      ],
       "summary": {
-        "sources": 4,
-        "raw_included": 0,
-        "claims": 0,
-        "unreviewed": 0
+        "source_count": 4,
+        "candidate_claim_count": 0,
+        "diagnostic_count": 4,
+        "raw_included_count": 0
       }
     },
     "timeline": {

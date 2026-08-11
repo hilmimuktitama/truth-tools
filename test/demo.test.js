@@ -109,6 +109,11 @@ test("workflow sibling checkouts use the canonical GitHub owner", () => {
       assert.equal(contents.includes(`repository: hilmimuktitama/${repository}`), true, `${workflow} checks out ${repository}`);
     }
   }
+  const settings = readFileSync(new URL("../docs/github-settings.md", import.meta.url), "utf8");
+  assert.equal(settings.includes("hilmmkttm/"), false, "github-settings.md contains the stale owner");
+  for (const repository of ["capture-truth", "timeline-truth", "program-truth"]) {
+    assert.equal(settings.includes(`hilmimuktitama/${repository}`), true, `settings documents ${repository}`);
+  }
 });
 
 test("release workflow uses a published release and validates the exact tag", () => {
@@ -142,12 +147,31 @@ test("sibling components wire in real cross-repo calls", async () => {
   const baseline = readJson("../examples/launch-readiness/baseline-plan.json");
   const current = readJson("../examples/launch-readiness/current-plan.json");
 
-  const captureResult = capture.captureSources({
+  assert.equal(typeof capture.createEvidencePack, "function", "Capture Truth must export createEvidencePack");
+  const captureResult = capture.createEvidencePack({
     sources: fixed.sources,
     now: () => new Date("2026-08-11T00:00:00.000Z")
   });
-  assert.equal(captureResult.kind, "capture_truth_capture");
-  assert.equal(captureResult.summary.sources, fixed.sources.length);
+  assert.equal(captureResult.kind, "capture_truth_evidence_pack");
+  assert.equal(captureResult.summary.source_count, fixed.sources.length);
+  assert.equal(Array.isArray(captureResult.candidate_claims), true);
+  assert.equal(captureResult.candidate_claims.every((claim) => claim.review_status === "unreviewed"), true);
+  assert.equal(Array.isArray(captureResult.diagnostics), true);
+  const candidateInput = {
+    sources: [{
+      id: "candidate-note",
+      type: "note",
+      locator: "https://example.com/candidate-note",
+      observed_at: "2026-08-10T00:00:00.000Z",
+      source_updated_at: "2026-08-10T00:00:00.000Z",
+      content: "Launch is scheduled for August 20."
+    }],
+    now: () => new Date("2026-08-11T00:00:00.000Z")
+  };
+  const candidateResult = capture.createEvidencePack(candidateInput);
+  assert.ok(candidateResult.candidate_claims.length > 0);
+  assert.equal(candidateResult.candidate_claims.every((claim) => claim.review_status === "unreviewed"), true);
+  assert.deepEqual(candidateResult, capture.createEvidencePack(candidateInput));
   assert.equal(captureResult.sources.every((source) => !source.raw_included), true);
 
   const timelineResult = timelineMod.createTimeline({
@@ -186,7 +210,7 @@ test("the embedded sibling sections mirror live sibling output", async () => {
   const { siblingSections } = await import("../scripts/demo.js");
 
   const sections = JSON.parse(JSON.stringify(await siblingSections()));
-  assert.equal(sections.capture.summary.sources, 4);
+  assert.equal(sections.capture.summary.source_count, 4);
   assert.equal(sections.timeline.items.length, 5);
   assert.equal(sections.diff.summary.added, 1);
   assert.equal(sections.program.review.artifact_quality, "pass");
@@ -219,7 +243,7 @@ test("optional sibling mode uses the checked-in projection without mutating demo
   try {
     const result = await runDemo({ write: false, verbose: false });
     assert.equal(result.ok, true);
-    assert.equal((await siblingSections()).capture.kind, "capture_truth_capture");
+     assert.equal((await siblingSections()).capture.kind, "capture_truth_evidence_pack");
     assert.equal(statSync(dataPath).mtimeMs, before);
   } finally {
     if (previousRoot === undefined) delete process.env.TRUTH_SUITE_COMPONENT_ROOT;
