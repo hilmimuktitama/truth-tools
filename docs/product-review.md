@@ -8,6 +8,24 @@ The problem is real: project updates routinely hide stale evidence, conflicting 
 
 The old version combined evidence capture, timeline parsing, program reconciliation, rendering, update checks, a web workflow, and nine MCP tools. That made it hard to explain, hard for an agent to call correctly, and hard to demonstrate in one minute. For a portfolio project, unproven breadth is not impressive. It reads as unfinished architecture.
 
+## Post-review correction (this branch)
+
+The first 0.3 simplification kept one flaw from the legacy line: a single
+`readiness` value that mixed evidence quality with program state. This
+convergence corrects it — see ADR-0002. The review now returns two
+independent dimensions:
+
+- `artifact_quality` (pass / needs_review / fail): the structure of the
+  supplied evidence, including contradictions;
+- `program_health` (on_track / at_risk / blocked / unknown): the state the
+  claims report.
+
+Exit codes depend on `artifact_quality` only, via `--fail-on fail` /
+`--fail-on needs_review`; program health requires an explicit
+`--fail-on-health blocked` / `--fail-on-health at_risk` gate. The flagship
+demo is built on the corrected pair: broken evidence is fail + blocked,
+fixed evidence is pass + blocked.
+
 ## Findings
 
 ### P0 — No single user job
@@ -94,5 +112,5 @@ Do not add another generic command. Prove the narrow workflow first:
 1. run at least five anonymized real status artifacts through it;
 2. record missed findings and false positives;
 3. add one source adapter only after a repeated manual pattern appears;
-4. publish the benchmark and examples;
+4. publish the synthetic evaluation results and examples;
 5. claim adoption or time savings only after measuring them.

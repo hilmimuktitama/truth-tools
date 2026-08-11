@@ -15,20 +15,39 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install
+      - run: npm ci
+      - run: npm audit --audit-level=high
       - run: npm test
       - run: npm run check
+      - run: npm run contracts:verify
+      - run: npm run demo
+      - run: npm run demo:build
       - run: node bin/truth-tools.js doctor
-      - name: Verify the documented blocked example
+      - name: Verify quality and health gates on the broken example
         shell: bash
         run: |
           set +e
           node bin/truth-tools.js review \
             --input examples/product-launch.json \
             --format json \
-            --fail-on blocked > /tmp/truth-tools-example.json
+            --fail-on fail > /tmp/truth-tools-example.json
           code=$?
           set -e
           test "$code" -eq 2
-          grep -q '"readiness": "blocked"' /tmp/truth-tools-example.json
+          grep -q '"artifact_quality": "fail"' /tmp/truth-tools-example.json
+      - name: Verify the fixed evidence pack passes quality but fails the health gate
+        shell: bash
+        run: |
+          set +e
+          node bin/truth-tools.js review \
+            --input examples/launch-readiness/evidence-pack.json \
+            --format json \
+            --fail-on-health blocked > /tmp/truth-tools-fixed.json
+          code=$?
+          set -e
+          test "$code" -eq 2
+          grep -q '"artifact_quality": "pass"' /tmp/truth-tools-fixed.json
+          grep -q '"program_health": "blocked"' /tmp/truth-tools-fixed.json
+      - run: npm run eval
+      - run: npm run eval:synthetic
       - run: npm pack --dry-run

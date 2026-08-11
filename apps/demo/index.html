@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Truth Tools demo: artifact quality vs program health for a launch-readiness status report.">
+  <title>Truth Tools — demo</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <p class="eyebrow">Deterministic evidence review</p>
+      <h1>Truth Tools</h1>
+      <p class="lede">
+        A launch-readiness status report, reviewed twice. The evidence structure gets fixed;
+        the program stays blocked. See the difference between <strong>artifact quality</strong>
+        and <strong>program health</strong>.
+      </p>
+      <nav aria-label="Sections">
+        <ul class="nav-list">
+          <li><a href="#story">Broken vs fixed</a></li>
+          <li><a href="#quality-health">Quality vs health</a></li>
+          <li><a href="#freshness">Freshness</a></li>
+          <li><a href="#categories">Categories, conflicts, actions</a></li>
+          <li><a href="#drift">Timeline drift</a></li>
+          <li><a href="#trust">Trust boundary</a></li>
+          <li><a href="#run">Run it yourself</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section id="story" class="wrap" aria-labelledby="story-heading">
+      <h2 id="story-heading">One report, two reviews</h2>
+      <p>
+        Both reviews run the same deterministic engine on the same story: a checkout migration
+        launch that needs a rollback owner. The broken artifact embeds a raw Jira body, misses an
+        evidence timestamp, keeps a stale snapshot, and lets two sources contradict each other.
+        The fixed artifact contains metadata only, with fresh timestamps and reconciled dates.
+      </p>
+
+      <div class="toggle" role="group" aria-label="Choose review">
+        <button type="button" id="view-broken" class="toggle-button" aria-pressed="true">Broken evidence</button>
+        <button type="button" id="view-fixed" class="toggle-button" aria-pressed="false">Fixed evidence</button>
+      </div>
+
+      <div id="verdict" class="verdict" aria-live="polite">
+        <div class="badge-row">
+          <span id="badge-quality" class="badge">—</span>
+          <span id="badge-health" class="badge">—</span>
+        </div>
+        <p id="verdict-note"></p>
+      </div>
+    </section>
+
+    <section id="quality-health" class="wrap" aria-labelledby="quality-health-heading">
+      <h2 id="quality-health-heading">Artifact quality vs program health</h2>
+      <div class="two-col">
+        <div class="card">
+          <h3>Artifact quality</h3>
+          <p><code>pass</code> | <code>needs_review</code> | <code>fail</code></p>
+          <p>
+            Is the evidence structure of this artifact sound? Every claim must cite a known source,
+            timestamps must be present and current enough, values must be typed scalars, and no two
+            claims may contradict each other.
+          </p>
+        </div>
+        <div class="card">
+          <h3>Program health</h3>
+          <p><code>on_track</code> | <code>at_risk</code> | <code>blocked</code> | <code>unknown</code></p>
+          <p>
+            What do the claims say about the program? Any explicit blocker means blocked; risks and
+            unknowns mean at risk; only facts means on track.
+          </p>
+        </div>
+      </div>
+      <p class="lesson" id="quality-health-lesson"></p>
+    </section>
+
+    <section id="freshness" class="wrap" aria-labelledby="freshness-heading">
+      <h2 id="freshness-heading">Freshness dimensions</h2>
+      <p>
+        <code>observed_at</code> is when the evidence was read or snapshotted.
+        <code>source_updated_at</code> is the last change reported by the source system.
+        The engine ages evidence against <code>as_of</code>; a source that changed after the
+        snapshot is a freshness warning even if the snapshot itself is recent.
+      </p>
+      <div id="freshness-panel" class="freshness-panel"></div>
+    </section>
+
+    <section id="categories" class="wrap" aria-labelledby="categories-heading">
+      <h2 id="categories-heading">Categories, conflicts, actions</h2>
+      <div class="two-col">
+        <div class="card">
+          <h3>Claims by kind</h3>
+          <div id="categories-panel"></div>
+        </div>
+        <div class="card">
+          <h3>Conflicts</h3>
+          <ul id="conflicts-panel" class="plain-list"></ul>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Recommended actions</h3>
+        <ul id="actions-panel" class="plain-list"></ul>
+      </div>
+    </section>
+
+    <section id="drift" class="wrap" aria-labelledby="drift-heading">
+      <h2 id="drift-heading">Timeline drift</h2>
+      <p>
+        The plan accepted on 2026-07-20 compared with the plan as of 2026-08-11. Drift is reported,
+        never judged: moving the launch is not an evidence failure, but hiding the movement is.
+      </p>
+      <div id="drift-summary" class="badge-row"></div>
+      <div class="two-col">
+        <div class="card">
+          <h3>Baseline</h3>
+          <ul id="drift-baseline" class="plain-list"></ul>
+        </div>
+        <div class="card">
+          <h3>Current</h3>
+          <ul id="drift-current" class="plain-list"></ul>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Changes</h3>
+        <ul id="drift-changes" class="plain-list"></ul>
+      </div>
+    </section>
+
+    <section id="sibling" class="wrap" aria-labelledby="sibling-heading">
+      <h2 id="sibling-heading">Component truth</h2>
+      <div class="card">
+        <p class="lesson">
+          Real sibling components run against the same fixtures: capture-truth normalizes the
+          evidence-pack sources, timeline-truth rebuilds and diffs the plan, and Program Truth's
+          canonical status artifact is mapped into this engine and reviewed here.
+        </p>
+        <div id="sibling-reviews" class="badge-row"></div>
+        <div class="two-col">
+          <div>
+            <h3>Capture truth</h3>
+            <ul id="sibling-capture" class="plain-list"></ul>
+          </div>
+          <div>
+            <h3>Timeline truth diff</h3>
+            <ul id="sibling-timeline" class="plain-list"></ul>
+          </div>
+        </div>
+        <div class="two-col">
+          <div>
+            <h3>Program Truth review</h3>
+            <ul id="sibling-program" class="plain-list"></ul>
+          </div>
+          <div>
+            <h3>Program Truth sources</h3>
+            <ul id="sibling-program-sources" class="plain-list"></ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="trust" class="wrap" aria-labelledby="trust-heading">
+      <h2 id="trust-heading">Trust boundary</h2>
+      <div class="card">
+        <p>
+          Truth Tools verifies the <em>structure</em> of the artifact it is given. It checks that
+          citations resolve, timestamps are usable, typed values do not contradict each other, and
+          blockers stay visible. It does not fetch URLs, read source bodies, or prove that a cited
+          source supports a claim. A fabricated source reference can pass if its metadata is
+          internally valid.
+        </p>
+        <p>
+          Raw source bodies are rejected by design: source content stays in its system of record,
+          and claim text is exported verbatim. This demo renders claim text with
+          <code>textContent</code>, never HTML, because claim text is not trusted markup.
+        </p>
+        <p>
+          The engine does not claim that the program is healthy or that a review proves anything.
+          It reports what the supplied evidence can and cannot support.
+        </p>
+      </div>
+    </section>
+
+    <section id="run" class="wrap" aria-labelledby="run-heading">
+      <h2 id="run-heading">Run it yourself</h2>
+      <div class="card">
+        <pre class="code-block"><code>npm install
+npm run demo        # verify all generated outputs against the engine
+npm run demo:dev    # serve this page at http://127.0.0.1:4173/
+npm test            # engine, CLI, MCP, contracts, drift tests
+npm run eval        # synthetic evaluation cases and metrics</code></pre>
+        <p>
+          Static files only. No login, no network requests, no telemetry. The data you see here is
+          the same JSON the engine verifies in <code>npm run demo</code>.
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>Truth Tools <span id="demo-version"></span> — MIT licensed. No telemetry.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://truth-tools.dev/schemas/claim.schema.json",
+  "title": "Claim",
+  "description": "A reviewed claim as produced by the review engine and as referenced by StatusArtifact.claims. kind is the explicit final classification; state defaults to active and governs contradiction and health participation (only active claims count); subject/value pair the typed contradiction key; mitigation is required on active risks; source references are always canonical structured SourceRef objects.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "kind", "text"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable claim identifier within the artifact."
+    },
+    "kind": {
+      "type": "string",
+      "enum": ["fact", "blocker", "risk", "unknown"],
+      "description": "Explicit final classification. The engine never infers kind from wording."
+    },
+    "state": {
+      "type": "string",
+      "enum": ["active", "superseded", "historical"],
+      "default": "active",
+      "description": "Lifecycle state. Only active claims participate in contradictions and program health; superseded and historical claims are reported but never judged."
+    },
+    "subject": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable subject key used for typed contradiction checks. Active contradiction checks require both subject and value."
+    },
+    "value": {
+      "oneOf": [
+        { "type": "string", "minLength": 1 },
+        { "type": "number" },
+        { "type": "boolean" }
+      ],
+      "description": "Scalar typed value. Objects, arrays, and null are rejected; contradictions compare typed values so 1 and \"1\" remain distinct."
+    },
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable claim text, exported verbatim."
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human or team accountable for the claim."
+    },
+    "due_at": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,9})?(Z|[+-]\\d{2}:\\d{2}))?$",
+      "description": "Commitment date. Active blockers require owner and due_at."
+    },
+    "mitigation": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Active risks require owner and mitigation."
+    },
+    "source_refs": {
+      "type": "array",
+      "items": { "$ref": "https://truth-tools.dev/schemas/source-ref.schema.json" },
+      "description": "Canonical structured references; may be empty only when the input omitted them, which the engine reports as a blocking issue."
+    }
+  }
+}

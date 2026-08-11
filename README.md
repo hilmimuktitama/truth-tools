@@ -2,57 +2,77 @@
 
 [![CI](https://github.com/hilmimuktitama/truth-tools/actions/workflows/ci.yml/badge.svg)](https://github.com/hilmimuktitama/truth-tools/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-> **Release status:** This branch contains the proposed `0.3.0` breaking reset. npm currently serves `0.2.0`, which still exposes the older umbrella workflow, so use this branch checkout until the reset is merged and released.
+> **Release status:** This branch contains `0.3.0`, the flagship reset. npm
+> currently serves `0.2.0`, the legacy umbrella line, which is untagged in
+> this repository and replaced by this version. Use this branch checkout
+> until the reset is merged and released.
 
+Truth Tools is a **deterministic evidence gate** for project-status
+artifacts. It checks the structure of a supplied status report — every claim
+must cite a known source, evidence must be fresh enough for your policy,
+typed values must not contradict each other, and blockers, risks, and
+unknowns must stay explicit — and returns two independent verdicts:
 
-Truth Tools audits the evidence structure of a project-status report before you send it.
+- **`artifact_quality`**: `pass` | `needs_review` | `fail` — is the evidence
+  structure of this artifact sound?
+- **`program_health`**: `on_track` | `at_risk` | `blocked` | `unknown` — what
+  do the claims say about the program?
 
-It checks four things deterministically:
-
-1. every claim cites a known source record;
-2. source records are recent enough for your policy;
-3. claims about the same subject do not disagree;
-4. blockers, risks, and unknowns remain explicit.
-
-It does **not** read source bodies or decide what is true. An agent, adapter, or human supplies structured claims and citations. Truth Tools checks whether that artifact has an obvious evidence gap or contradiction.
+It does **not** read source bodies, fetch URLs, or decide what is true. An
+agent, adapter, or human supplies structured claims and citations; Truth
+Tools checks whether that artifact has an obvious evidence gap or
+contradiction.
 
 ## Why this exists
 
-Project updates often look cleaner than the underlying evidence. A parent ticket says green, a decision log names another date, a meeting note has an unresolved blocker, and the final status quietly picks whichever version is convenient.
+Project updates often look cleaner than the underlying evidence. A parent
+ticket says green, a decision log names another date, a meeting note has an
+unresolved blocker, and the final status quietly picks whichever version is
+convenient.
 
-Truth Tools is the deterministic gate after evidence collection and before publication:
+The 0.3 reset also fixed a flaw in its own plan: a single `readiness` value
+conflated "is the evidence sound?" with "is the program OK?". Those are
+different questions. The flagship demo is built on the corrected pair:
 
-```text
-Jira / docs / notes
-        |
-        v
-agent or adapter creates status.json
-        |
-        v
-Truth Tools review
-        |
-        +---- Markdown review for humans
-        +---- JSON result for automation
-        +---- exit code for CI
-```
+| Artifact | Verdict | Meaning |
+| --- | --- | --- |
+| broken evidence | `fail` + `blocked` | You cannot trust the status. |
+| fixed evidence | `pass` + `blocked` | The evidence is trustworthy — and the blocker is now visible and actionable. |
 
-It is useful before a weekly status update, release-readiness review, leadership memo, or generated program artifact is published.
+Fixing the evidence does not fix the program. It makes the blocker
+trustworthy.
+
+The demo also runs the real sibling components against the same fixtures when
+they sit beside `truth-tools` in the workspace: capture-truth normalizes the
+evidence-pack sources, timeline-truth rebuilds and diffs the plan timelines,
+and Program Truth's canonical status artifact is mapped into this engine and
+reviewed here (it validates as `pass` quality with `blocked` health). The
+browser demo renders a "Component truth" section from those live results.
 
 ## Quick start
 
-Requires Node.js 22 or newer. Run the checked-in example from a checkout:
+Requires Node.js 22 or newer.
 
 ```bash
-git clone --branch agent/simplify-truth-tools --single-branch \
+git clone --branch portfolio/truth-suite-convergence-2026-08-11 --single-branch \
   https://github.com/hilmimuktitama/truth-tools.git
 cd truth-tools
-npm install
-npm run example
+npm ci
+npm run demo        # verify every generated output against the engine
+npm run demo:dev    # static browser demo at http://127.0.0.1:4173/
 ```
 
-The example deliberately contains a conflicting launch date and an ownerless blocker, so the result is `blocked`.
+The integrated launch-readiness showcase lives in
+[`examples/launch-readiness/`](examples/launch-readiness/README.md): a broken
+artifact that fails review, a fixed evidence pack that passes while the
+program stays blocked, generated Markdown/JSON reviews, and a timeline-drift
+fixture (the launch moved from August 17 to August 20 — drift is reported,
+never judged). The static browser demo at
+[`apps/demo/`](apps/demo/index.html) has no login and no telemetry.
 
-See the [generated report](examples/product-launch-report.md), the [portfolio case study](docs/portfolio.md), and the [product/code review that drove the reset](docs/product-review.md).
+See the [portfolio case study](docs/portfolio.md), the
+[product reset](docs/product-reset.md), and the
+[review that drove it](docs/product-review.md).
 
 After `0.3.0` is published, the package command will be:
 
@@ -63,7 +83,12 @@ npm exec --yes --package truth-tools@0.3.0 -- \
 
 ## Input
 
-Truth Tools accepts source **metadata**, not raw Jira or document bodies. `as_of` is required so the same input produces the same review. `captured_at` means when the cited evidence was observed or snapshotted; it is not automatically the source page's last-modified time. Dates must use `YYYY-MM-DD` or an ISO datetime with `Z`/UTC offset; locale-dependent or timezone-free dates are rejected.
+Truth Tools accepts source **metadata**, not raw Jira or document bodies.
+`as_of` is required so the same input always produces the same review.
+`observed_at` is when the evidence was observed or snapshotted;
+`source_updated_at` is the last-modified time reported by the source system.
+Dates must use `YYYY-MM-DD` or an ISO datetime with `Z`/UTC offset;
+locale-dependent or timezone-free dates are rejected.
 
 ```json
 {
@@ -80,7 +105,8 @@ Truth Tools accepts source **metadata**, not raw Jira or document bodies. `as_of
       "id": "jira-release",
       "type": "jira",
       "url": "https://example.atlassian.net/browse/PLAT-123",
-      "captured_at": "2026-08-10T08:00:00.000Z"
+      "observed_at": "2026-08-10T08:00:00.000Z",
+      "source_updated_at": "2026-08-10T08:00:00.000Z"
     }
   ],
   "claims": [
@@ -90,11 +116,37 @@ Truth Tools accepts source **metadata**, not raw Jira or document bodies. `as_of
       "subject": "launch.date",
       "value": "2026-08-20",
       "text": "Target launch date is August 20, 2026.",
-      "source_refs": ["jira-release"]
+      "source_refs": [{ "source_id": "jira-release" }]
     }
   ]
 }
 ```
+
+### Compatibility forms
+
+Legacy inputs keep working while you migrate: `captured_at` (use
+`observed_at`), `sourceId` (use `id`), and plain-string `source_refs` (use
+`{ "source_id": "..." }`) are normalized to the canonical shapes and reported
+as explicit deprecation findings under `findings.deprecations`. Deprecations
+never change quality. See [docs/migration.md](docs/migration.md).
+
+### Raw bodies vs provenance metadata
+
+Raw source bodies never travel in the artifact: `content`, `body`, `raw`,
+`payload`, `document`, and `data` keys always fail review and are stripped
+from the normalized output. Two provenance extensions are accepted:
+
+- `sources[].raw_included` — optional boolean metadata from a capture
+  component recording that the capture record held a body in its system of
+  record. It is preserved on the source and is never treated as a body
+  itself.
+- `source_refs[]` Timeline Truth provenance fields — `heading` (string),
+  `tableRow` and `line` (positive integers), and `text` (string) locate the
+  evidence inside the source. They are passed through unchanged and never
+  relax the required `source_id` + `locator` contract.
+
+The browser demo displays raw-inclusion state and Timeline Truth provenance
+while still stripping actual bodies from the shipped data.
 
 ### Claim kinds
 
@@ -103,24 +155,25 @@ Truth Tools accepts source **metadata**, not raw Jira or document bodies. `as_of
 - `risk`: a credible threat with mitigation still needed;
 - `unknown`: a question that remains unresolved.
 
-Classification is explicit. Truth Tools never labels a sentence as a fact just because it does not contain the word “risk” or “blocked.”
+Classification is explicit. Truth Tools never labels a sentence as a fact
+just because it does not contain the word "risk" or "blocked".
 
 ### Contradictions
 
-Contradiction checks require a `subject` and scalar `value` pair. Values may be strings, numbers, or booleans. Claims conflict when they share a normalized `subject` but have different typed values.
+Active contradiction checks require a `subject` and a scalar `value` pair.
+Values may be strings, numbers, or booleans. Claims conflict when they share
+a normalized `subject` but have different typed values — so `1` and `"1"`
+remain distinct, and objects/null are rejected rather than guessed. A
+contradiction makes `artifact_quality: fail`. Truth Tools does not choose a
+winner; it reports the disagreement and asks for owner reconciliation.
 
-```json
-{
-  "id": "date-from-decision-log",
-  "kind": "fact",
-  "subject": "launch.date",
-  "value": "2026-08-22",
-  "text": "The decision log records August 22, 2026.",
-  "source_refs": ["decision-log"]
-}
-```
+### Freshness
 
-Truth Tools does not choose a winner. It reports the disagreement and asks for owner reconciliation.
+Evidence age is `as_of` minus `observed_at`; a source older than
+`max_source_age_days` raises a `needs_review` finding. A `source_updated_at`
+after `as_of` means the source changed after your cutoff — the snapshot may
+be stale relative to the source — and is also a review-level finding.
+See ADR-0003.
 
 ## CLI
 
@@ -128,21 +181,30 @@ Truth Tools does not choose a winner. It reports the disagreement and asks for o
 truth-tools review --input status.json
 cat status.json | truth-tools review --format json
 truth-tools review --input status.json --out reports/status.md
-truth-tools review --input status.json --fail-on blocked
 truth-tools review --input status.json --fail-on needs_review
+truth-tools review --input status.json --fail-on fail
+truth-tools review --input status.json --fail-on-health blocked
 truth-tools doctor
-truth-tools version
 truth-tools example
 truth-tools --version
 ```
 
-Readiness values:
+Exit codes: `0` review completed and no gate triggered; `1` usage, input, or
+engine error; `2` a gate is triggered.
 
-- `ready`: the artifact has current source references, no contradictions, and no open blocker, risk, unknown, or validation issue;
-- `needs_review`: evidence metadata is stale/incomplete, or the artifact has risks or unknowns;
-- `blocked`: there is a blocker, contradiction, invalid citation, duplicate identity, unsupported field/value, or raw source body.
+Gates are **independent** and combinable:
 
-`--fail-on blocked` exits with code `2` only for blocked reviews. `--fail-on needs_review` exits with code `2` for either `needs_review` or `blocked`, which makes the command usable in CI.
+| Gate | Exits 2 when |
+| --- | --- |
+| `--fail-on fail` | `artifact_quality` is `fail` |
+| `--fail-on needs_review` | `artifact_quality` is `needs_review` or `fail` |
+| `--fail-on-health blocked` | `program_health` is `blocked` |
+| `--fail-on-health at_risk` | `program_health` is `at_risk`, `blocked`, or `unknown` |
+
+Program health never changes the exit code by itself. A clean artifact with a
+blocked program exits `0` unless you pass `--fail-on-health` explicitly —
+quality gates the artifact, health gates the program, and CI can use either
+or both.
 
 ## MCP
 
@@ -172,49 +234,87 @@ After `0.3.0` is published, use the package binary:
 }
 ```
 
-The server exposes only two read-only tools:
+The server exposes only two read-only tools, both using the same core as the
+CLI:
 
 | Tool | Purpose |
 | --- | --- |
 | `truth.review` | Run the deterministic evidence-structure audit. |
 | `truth.doctor` | Smoke-test the installed review contract. |
 
-The small surface is intentional. An agent should make one review call, not orchestrate nine low-level tools correctly.
+The small surface is intentional. An agent should make one review call, not
+orchestrate nine low-level tools correctly.
 
-## Example result
+## Contracts
 
-```text
-Readiness: blocked
-Sources: 3
-Claims: 4
-Blockers: 1
-Risks: 1
-Conflicts: 1
+Canonical JSON Schema Draft 2020-12 contracts live in
+[`packages/contracts/schemas/`](packages/contracts/schemas/): Source,
+SourceRef, CandidateClaim, Claim, TimelineItem, StatusArtifact, and
+TruthReview. They are private workspace sources shipped through the root
+`truth-tools` npm package and are enforced in this repository by `npm run contracts:verify`
+(schema registration, `$ref` resolution, engine/schema enum parity, fixture
+validation, and conformance of engine output — including output for failing
+artifacts).
 
-P0 Reconcile launch.date: 2026-08-20 vs 2026-08-22.
-P0 Assign an owner and resolution date for the rollback blocker.
-P1 Record mitigation for peak-traffic capacity risk.
-```
+## Evaluation
+
+`npm run eval` runs 28 hand-written policy-matrix cases; `npm run
+eval:synthetic` adds 200 seeded synthetic cases (both run in CI). Metrics:
+pass rate, per-dimension accuracy, and issue precision/recall with false
+positives counted on every case — `expect.issues` lists are complete
+specifications, so unexpected findings fail the case. Seeded-defect
+detection recall and unexpected-finding counts are reported separately, and
+the fixed seed makes every synthetic run repeatable. The harness measures
+the engine against its own specification — it does not claim real-world
+effectiveness. See [docs/evaluation.md](docs/evaluation.md).
 
 ## Trust boundary
 
-Truth Tools verifies citation integrity, timestamps, explicit classifications, and internal consistency **inside the supplied artifact**. It does not fetch a URL, inspect the external source, or prove that the cited source supports the claim. A fabricated or incorrect source reference can still pass if its metadata is internally valid.
+Truth Tools verifies citation integrity, timestamps, explicit
+classifications, typed contradictions, and blockers/risks/unknowns **inside
+the supplied artifact**. It does not fetch a URL, inspect the external
+source, or prove that the cited source supports the claim. A fabricated or
+incorrect source reference can still pass if its metadata is internally
+valid.
 
-It deliberately rejects raw `content`, `body`, `raw`, and `raw_content` fields. Keep confidential source bodies in their systems of record. Claim text is exported verbatim, so it must not contain credentials or confidential source bodies.
+It deliberately rejects raw `content`, `body`, `raw`, and `raw_content`
+fields. Keep confidential source bodies in their systems of record. Claim
+text is exported verbatim, so it must not contain credentials or confidential
+source bodies. The browser demo renders all dynamic text with `textContent`,
+never HTML, and makes no network requests.
 
 ## Development
 
 ```bash
-npm install
-npm test
-npm run check
-npm pack --dry-run
+npm ci
+npm test                  # engine, CLI, MCP, contracts, drift, demo, evaluation
+npm run check             # syntax-check every JS file
+npm run contracts:verify  # schema conformance and parity
+npm run demo              # verify generated outputs and demo data against the engine
+npm run demo:build        # rebuild apps/demo/dist from sources
+npm run demo:dev          # static demo server on 127.0.0.1:4173
+npm run eval              # evaluation harness (hand-written cases)
+npm run eval:synthetic    # + 200 seeded synthetic cases
+node scripts/demo.js --write   # regenerate reports, drift, and demo data
+npm pack --dry-run        # inspect the package allowlist
 ```
 
-The test suite covers valid and invalid citations, stale and future-dated evidence, strict date parsing, typed contradiction values, unsupported fields, explicit claim classification, raw-body rejection, Markdown rendering, CLI output, MCP output, and CI exit codes.
+The test suite covers valid and invalid citations, stale and future-dated
+evidence, strict date parsing, typed contradiction values, unsupported
+fields, explicit claim classification, deprecation normalizers, raw-body
+rejection, Markdown escaping, the exact exit-code policy for quality and
+health gates, CLI output, MCP output and a real stdio round-trip, schema
+conformance, timeline drift, demo drift verification, and evaluation
+repeatability.
 
 ## Portfolio summary
 
-> Built a deterministic CLI and MCP gate that audits generated project-status artifacts for citation integrity, stale source metadata, typed contradictions, blockers, risks, and unresolved unknowns, with Markdown/JSON output and CI-enforceable readiness states.
+> Built a deterministic CLI and MCP gate that audits generated project-status
+> artifacts for citation integrity, source freshness, typed contradictions,
+> blockers, risks, and unknowns — with canonical JSON Schema contracts,
+> artifact-quality vs program-health verdicts, a static no-login browser
+> demo with timeline-drift and freshness visualization, and a repeatable
+> synthetic evaluation harness.
 
-MIT licensed.
+MIT licensed. See [CONTRIBUTING.md](CONTRIBUTING.md),
+[SECURITY.md](SECURITY.md), and [CHANGELOG.md](CHANGELOG.md).

@@ -1,0 +1,64 @@
+name: Bug report
+description: Report a deterministic failure in truth-tools, its contracts, demo, or evaluation.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a bug. Please include the exact input, command, and
+        output so the report is reproducible. Truth Tools is deterministic:
+        the same input must always produce the same review.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `truth-tools --version` or the git commit you are on.
+      placeholder: "0.3.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Surface
+      description: Where did you hit the bug?
+      options:
+        - CLI (truth-tools review)
+        - MCP (truth.review / truth.doctor)
+        - JSON Schema contracts
+        - Static browser demo
+        - Evaluation harness
+        - Documentation
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Exact command line, stdin, or input file contents.
+      placeholder: |
+        truth-tools review --input status.json --format json
+        <input JSON>
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+      description: What should the review, exit code, or report have been?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+      description: What did you get instead? Paste the full output.
+    validations:
+      required: true
+  - type: checkboxes
+    id: confidentiality
+    attributes:
+      label: Confidentiality
+      description: Truth Tools rejects raw source bodies; keep this report free of credentials and source content.
+      options:
+        - label: "This report contains no credentials, secrets, or raw source bodies."
+          required: true

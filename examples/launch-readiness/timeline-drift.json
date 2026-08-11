@@ -1,0 +1,103 @@
+{
+  "added": [
+    {
+      "key": "t5",
+      "item": {
+        "id": "t5",
+        "title": "Rollback owner named",
+        "type": "task",
+        "start": "2026-08-12",
+        "end": "2026-08-12",
+        "duration": "1d",
+        "exact_date_needed": false,
+        "owner": "Platform TPM",
+        "status": "planned",
+        "dependencies": [],
+        "date_derivation": "explicit",
+        "evidence_grade": "exact",
+        "evidence_reason": "Exact date evidence (YYYY-MM-DD) found in source text.",
+        "missing_title": false,
+        "dangerous_fields": [],
+        "source_refs": [
+          {
+            "source_id": "risk-review",
+            "locator": "https://example.com/notes/risk-review"
+          }
+        ]
+      }
+    }
+  ],
+  "removed": [],
+  "changed": [
+    {
+      "key": "t1",
+      "title": "Rollback drill complete",
+      "changes": [
+        "status"
+      ],
+      "from": {
+        "status": "planned"
+      },
+      "to": {
+        "status": "done"
+      }
+    },
+    {
+      "key": "t2",
+      "title": "Load test at 200% peak",
+      "changes": [
+        "start",
+        "end",
+        "status"
+      ],
+      "from": {
+        "start": "2026-08-03",
+        "end": "2026-08-03",
+        "status": "planned"
+      },
+      "to": {
+        "start": "2026-08-14",
+        "end": "2026-08-14",
+        "status": "in_progress"
+      }
+    },
+    {
+      "key": "t3",
+      "title": "Release freeze",
+      "changes": [
+        "status"
+      ],
+      "from": {
+        "status": "planned"
+      },
+      "to": {
+        "status": "done"
+      }
+    },
+    {
+      "key": "t4",
+      "title": "Launch",
+      "changes": [
+        "start",
+        "end"
+      ],
+      "from": {
+        "start": "2026-08-17",
+        "end": "2026-08-17"
+      },
+      "to": {
+        "start": "2026-08-20",
+        "end": "2026-08-20"
+      }
+    }
+  ],
+  "unchanged": [],
+  "summary": {
+    "baseline": 4,
+    "current": 5,
+    "added": 1,
+    "removed": 0,
+    "changed": 4,
+    "unchanged": 0
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "name": "truth-tools-contracts",
+  "version": "0.3.0",
+  "private": true,
+  "description": "Canonical JSON Schema Draft 2020-12 contracts for Truth Tools: Source, SourceRef, CandidateClaim, Claim, TimelineItem, StatusArtifact, TruthReview.",
+  "license": "MIT",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./schemas/*.json": "./schemas/*.json"
+  },
+  "files": [
+    "index.js",
+    "schemas"
+  ],
+  "scripts": {
+    "check": "node --check index.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "keywords": [
+    "json-schema",
+    "contracts",
+    "evidence",
+    "truth-tools"
+  ],
+  "author": "Hilmi Muktitama",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hilmimuktitama/truth-tools.git"
+  },
+  "bugs": {
+    "url": "https://github.com/hilmimuktitama/truth-tools/issues"
+  },
+  "homepage": "https://github.com/hilmimuktitama/truth-tools#readme"
+}

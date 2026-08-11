@@ -1,0 +1,153 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://truth-tools.dev/schemas/truth-review.schema.json",
+  "title": "TruthReview",
+  "description": "Deterministic review result. artifact_quality describes the evidence structure of the supplied artifact; program_health describes the state of the program the active claims report. The two dimensions are independent: an artifact can pass review while the program is blocked. Only claims with state active participate in contradictions and program health.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kind",
+    "schema_version",
+    "initiative",
+    "as_of",
+    "policy",
+    "artifact_quality",
+    "program_health",
+    "summary",
+    "sources",
+    "claims",
+    "findings",
+    "recommended_actions"
+  ],
+  "properties": {
+    "kind": {
+      "const": "truth_review"
+    },
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "initiative": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "owner": { "type": "string", "minLength": 1 },
+        "objective": { "type": "string", "minLength": 1 }
+      }
+    },
+    "as_of": {
+      "type": "string"
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_observation_age_days", "max_source_content_age_days"],
+      "properties": {
+        "max_observation_age_days": { "type": "integer", "minimum": 0 },
+        "max_source_content_age_days": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "artifact_quality": {
+      "type": "string",
+      "enum": ["pass", "needs_review", "fail"],
+      "description": "pass: no evidence issues and no contradictions. needs_review: only review-level issues such as stale evidence or missing locators. fail: any blocking issue or any contradiction."
+    },
+    "program_health": {
+      "type": "string",
+      "enum": ["on_track", "at_risk", "blocked", "unknown"],
+      "description": "Computed from active claims only. blocked: at least one active blocker. at_risk: no active blockers but at least one active risk or unknown. on_track: at least one active fact and no active blocker, risk, or unknown. unknown: no active kind-classified claims."
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sources", "claims", "facts", "blockers", "risks", "unknowns", "conflicts", "issues", "deprecations"],
+      "properties": {
+        "sources": { "type": "integer" },
+        "claims": { "type": "integer" },
+        "facts": { "type": "integer" },
+        "blockers": { "type": "integer" },
+        "risks": { "type": "integer" },
+        "unknowns": { "type": "integer" },
+        "conflicts": { "type": "integer" },
+        "issues": { "type": "integer" },
+        "deprecations": { "type": "integer" }
+      }
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "$ref": "https://truth-tools.dev/schemas/source.schema.json"
+      },
+      "description": "Normalized sources that satisfy the canonical shape; rejected entities appear as issues with their input location."
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "$ref": "https://truth-tools.dev/schemas/claim.schema.json"
+      },
+      "description": "Normalized reviewed Claims; each carries a canonical state, defaulting to active."
+    },
+    "timeline": {
+      "type": "array",
+      "items": {
+        "$ref": "https://truth-tools.dev/schemas/timeline-item.schema.json"
+      }
+    },
+    "timeline_drift": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["added", "removed", "changed", "unchanged", "summary"],
+      "properties": {
+        "added": {
+          "type": "array",
+          "items": { "type": "object" }
+        },
+        "removed": {
+          "type": "array",
+          "items": { "type": "object" }
+        },
+        "changed": {
+          "type": "array",
+          "items": { "type": "object" }
+        },
+        "unchanged": {
+          "type": "array",
+          "items": { "type": "object" }
+        },
+        "summary": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["baseline", "current", "added", "removed", "changed", "unchanged"],
+          "properties": {
+            "baseline": { "type": "integer" },
+            "current": { "type": "integer" },
+            "added": { "type": "integer" },
+            "removed": { "type": "integer" },
+            "changed": { "type": "integer" },
+            "unchanged": { "type": "integer" }
+          }
+        }
+      },
+      "description": "Drift is reported, never judged; it carries no issue findings."
+    },
+    "findings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["facts", "blockers", "risks", "unknowns", "conflicts", "issues", "deprecations"],
+      "properties": {
+        "facts": { "type": "array", "items": { "type": "object" } },
+        "blockers": { "type": "array", "items": { "type": "object" } },
+        "risks": { "type": "array", "items": { "type": "object" } },
+        "unknowns": { "type": "array", "items": { "type": "object" } },
+        "conflicts": { "type": "array", "items": { "type": "object" } },
+        "issues": { "type": "array", "items": { "type": "object" } },
+        "deprecations": { "type": "array", "items": { "type": "object" } }
+      }
+    },
+    "recommended_actions": {
+      "type": "array",
+      "items": { "type": "object" }
+    }
+  }
+}

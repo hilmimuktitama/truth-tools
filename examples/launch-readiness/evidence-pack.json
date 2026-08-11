@@ -1,0 +1,264 @@
+{
+  "kind": "status_artifact",
+  "schema_version": "1.0.0",
+  "as_of": "2026-08-11T00:00:00.000Z",
+  "initiative": {
+    "name": "Checkout migration launch readiness",
+    "owner": "Platform TPM",
+    "objective": "Ship the checkout migration on time with verifiable readiness."
+  },
+  "policy": {
+    "max_observation_age_days": 14,
+    "max_source_content_age_days": 14
+  },
+  "sources": [
+    {
+      "id": "jira-release",
+      "type": "jira",
+      "url": "https://example.atlassian.net/browse/PLAT-123",
+      "observed_at": "2026-08-10T08:00:00.000Z",
+      "source_updated_at": "2026-08-10T08:00:00.000Z",
+      "owner": "Platform TPM"
+    },
+    {
+      "id": "jira-rollback",
+      "type": "jira",
+      "url": "https://example.atlassian.net/browse/PLAT-124",
+      "observed_at": "2026-08-10T09:00:00.000Z",
+      "source_updated_at": "2026-08-10T09:00:00.000Z",
+      "owner": "Platform TPM"
+    },
+    {
+      "id": "decision-log",
+      "type": "decision-log",
+      "url": "https://example.com/decisions/checkout-launch",
+      "observed_at": "2026-08-09T14:00:00.000Z",
+      "source_updated_at": "2026-08-09T14:00:00.000Z"
+    },
+    {
+      "id": "risk-review",
+      "type": "meeting-note",
+      "url": "https://example.com/notes/risk-review",
+      "observed_at": "2026-08-08T09:00:00.000Z",
+      "source_updated_at": "2026-08-08T09:00:00.000Z"
+    }
+  ],
+  "claims": [
+    {
+      "id": "launch-date",
+      "kind": "fact",
+      "state": "active",
+      "subject": "launch.date",
+      "value": "2026-08-20",
+      "text": "The decision log and the Jira tracker agree on August 20 as the launch date.",
+      "source_refs": [
+        { "source_id": "jira-release", "locator": "https://example.atlassian.net/browse/PLAT-123" },
+        { "source_id": "decision-log", "locator": "https://example.com/decisions/checkout-launch" }
+      ]
+    },
+    {
+      "id": "release-freeze",
+      "kind": "fact",
+      "state": "active",
+      "subject": "release.freeze",
+      "value": "2026-08-10",
+      "text": "Release freeze started August 10 and is in effect.",
+      "source_refs": [
+        { "source_id": "jira-release", "locator": "https://example.atlassian.net/browse/PLAT-123" }
+      ]
+    },
+    {
+      "id": "rollback-owner",
+      "kind": "blocker",
+      "state": "active",
+      "subject": "rollback.owner",
+      "value": "unassigned",
+      "text": "The rollback decision has no accountable owner; PLAT-124 has no assignee.",
+      "owner": "Platform TPM",
+      "due_at": "2026-08-14",
+      "source_refs": [
+        { "source_id": "jira-rollback", "locator": "https://example.atlassian.net/browse/PLAT-124" },
+        { "source_id": "risk-review", "locator": "https://example.com/notes/risk-review" }
+      ]
+    },
+    {
+      "id": "capacity-risk",
+      "kind": "risk",
+      "state": "active",
+      "subject": "capacity.headroom",
+      "value": "unverified",
+      "text": "Peak traffic headroom has not been verified in production-like load tests.",
+      "owner": "Platform Engineering",
+      "mitigation": "Run the load test at 200% peak before the release window and sign off on headroom.",
+      "source_refs": [
+        { "source_id": "risk-review", "locator": "https://example.com/notes/risk-review" }
+      ]
+    }
+  ],
+  "timeline": [
+    {
+      "id": "t1",
+      "title": "Rollback drill complete",
+      "type": "task",
+      "start": "2026-07-27",
+      "end": "2026-07-27",
+      "duration": "1d",
+      "exact_date_needed": false,
+      "owner": "Platform TPM",
+      "status": "done",
+      "dependencies": [],
+      "date_derivation": "explicit",
+      "evidence_grade": "exact",
+      "evidence_reason": "Exact date evidence (YYYY-MM-DD) found in source text.",
+      "missing_title": false,
+      "dangerous_fields": [],
+      "source_refs": [{ "source_id": "jira-release", "locator": "https://example.atlassian.net/browse/PLAT-123" }]
+    },
+    {
+      "id": "t2",
+      "title": "Load test at 200% peak",
+      "type": "task",
+      "start": "2026-08-14",
+      "end": "2026-08-14",
+      "duration": "1d",
+      "exact_date_needed": false,
+      "owner": "Platform Engineering",
+      "status": "in_progress",
+      "dependencies": [],
+      "date_derivation": "explicit",
+      "evidence_grade": "exact",
+      "evidence_reason": "Exact date evidence (YYYY-MM-DD) found in source text.",
+      "missing_title": false,
+      "dangerous_fields": [],
+      "source_refs": [{ "source_id": "jira-release", "locator": "https://example.atlassian.net/browse/PLAT-123" }]
+    },
+    {
+      "id": "t3",
+      "title": "Release freeze",
+      "type": "task",
+      "start": "2026-08-10",
+      "end": "2026-08-10",
+      "duration": "1d",
+      "exact_date_needed": false,
+      "owner": "Platform TPM",
+      "status": "done",
+      "dependencies": [],
+      "date_derivation": "explicit",
+      "evidence_grade": "exact",
+      "evidence_reason": "Exact date evidence (YYYY-MM-DD) found in source text.",
+      "missing_title": false,
+      "dangerous_fields": [],
+      "source_refs": [{ "source_id": "jira-release", "locator": "https://example.atlassian.net/browse/PLAT-123" }]
+    },
+    {
+      "id": "t4",
+      "title": "Launch",
+      "type": "milestone",
+      "start": "2026-08-20",
+      "end": "2026-08-20",
+      "duration": "1d",
+      "exact_date_needed": false,
+      "owner": "Platform TPM",
+      "status": "planned",
+      "dependencies": ["Load test at 200% peak", "Rollback drill complete"],
+      "date_derivation": "explicit",
+      "evidence_grade": "exact",
+      "evidence_reason": "Exact date evidence (YYYY-MM-DD) found in source text.",
+      "missing_title": false,
+      "dangerous_fields": [],
+      "source_refs": [{ "source_id": "decision-log", "locator": "https://example.com/decisions/checkout-launch" }]
+    },
+    {
+      "id": "t5",
+      "title": "Rollback owner named",
+      "type": "task",
+      "start": "2026-08-12",
+      "end": "2026-08-12",
+      "duration": "1d",
+      "exact_date_needed": false,
+      "owner": "Platform TPM",
+      "status": "planned",
+      "dependencies": [],
+      "date_derivation": "explicit",
+      "evidence_grade": "exact",
+      "evidence_reason": "Exact date evidence (YYYY-MM-DD) found in source text.",
+      "missing_title": false,
+      "dangerous_fields": [],
+      "source_refs": [{ "source_id": "risk-review", "locator": "https://example.com/notes/risk-review" }]
+    }
+  ],
+  "baseline_timeline": [
+    {
+      "id": "t1",
+      "title": "Rollback drill complete",
+      "type": "task",
+      "start": "2026-07-27",
+      "end": "2026-07-27",
+      "duration": "1d",
+      "exact_date_needed": false,
+      "owner": "Platform TPM",
+      "status": "planned",
+      "dependencies": [],
+      "date_derivation": "explicit",
+      "evidence_grade": "exact",
+      "evidence_reason": "Exact date evidence (YYYY-MM-DD) found in source text.",
+      "missing_title": false,
+      "dangerous_fields": [],
+      "source_refs": [{ "source_id": "jira-release", "locator": "https://example.atlassian.net/browse/PLAT-123" }]
+    },
+    {
+      "id": "t2",
+      "title": "Load test at 200% peak",
+      "type": "task",
+      "start": "2026-08-03",
+      "end": "2026-08-03",
+      "duration": "1d",
+      "exact_date_needed": false,
+      "owner": "Platform Engineering",
+      "status": "planned",
+      "dependencies": [],
+      "date_derivation": "explicit",
+      "evidence_grade": "exact",
+      "evidence_reason": "Exact date evidence (YYYY-MM-DD) found in source text.",
+      "missing_title": false,
+      "dangerous_fields": [],
+      "source_refs": [{ "source_id": "jira-release", "locator": "https://example.atlassian.net/browse/PLAT-123" }]
+    },
+    {
+      "id": "t3",
+      "title": "Release freeze",
+      "type": "task",
+      "start": "2026-08-10",
+      "end": "2026-08-10",
+      "duration": "1d",
+      "exact_date_needed": false,
+      "owner": "Platform TPM",
+      "status": "planned",
+      "dependencies": [],
+      "date_derivation": "explicit",
+      "evidence_grade": "exact",
+      "evidence_reason": "Exact date evidence (YYYY-MM-DD) found in source text.",
+      "missing_title": false,
+      "dangerous_fields": [],
+      "source_refs": [{ "source_id": "jira-release", "locator": "https://example.atlassian.net/browse/PLAT-123" }]
+    },
+    {
+      "id": "t4",
+      "title": "Launch",
+      "type": "milestone",
+      "start": "2026-08-17",
+      "end": "2026-08-17",
+      "duration": "1d",
+      "exact_date_needed": false,
+      "owner": "Platform TPM",
+      "status": "planned",
+      "dependencies": ["Load test at 200% peak", "Rollback drill complete"],
+      "date_derivation": "explicit",
+      "evidence_grade": "exact",
+      "evidence_reason": "Exact date evidence (YYYY-MM-DD) found in source text.",
+      "missing_title": false,
+      "dangerous_fields": [],
+      "source_refs": [{ "source_id": "decision-log", "locator": "https://example.com/decisions/checkout-launch" }]
+    }
+  ]
+}

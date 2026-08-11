@@ -1,0 +1,9 @@
+# Code owners
+
+# Truth Tools is maintained by its author; every change needs their review.
+* @hilmimuktitama
+
+# The canonical contracts package is the interface every other component
+# depends on; schema changes need the same owner plus a CI pass of
+# contracts:verify.
+packages/contracts/ @hilmimuktitama

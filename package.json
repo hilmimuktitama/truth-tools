@@ -1,7 +1,7 @@
 {
   "name": "truth-tools",
   "version": "0.3.0",
-  "description": "Deterministic evidence gate for project status reports.",
+  "description": "Deterministic evidence gate for project-status reports: canonical JSON Schema contracts, artifact quality vs program health, CLI, MCP, static demo, and synthetic evaluation.",
   "license": "MIT",
   "type": "module",
   "bin": {
@@ -11,19 +11,31 @@
   "files": [
     "bin",
     "src",
+    "packages",
+    "scripts",
     "examples",
     "docs",
+    "apps",
+    "evaluation",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "test": "node --test",
-    "check": "node --check bin/truth-tools.js && node --check src/cli.js && node --check src/mcp-server.js && node --check src/mcp-tools.js && node --check src/report.js && node --check src/review.js",
-    "pack:dry-run": "npm pack --dry-run",
-    "example": "node bin/truth-tools.js review --input examples/product-launch.json"
+    "check": "node --check bin/truth-tools.js && node --check src/cli.js && node --check src/contracts.js && node --check src/mcp-server.js && node --check src/mcp-tools.js && node --check src/normalize.js && node --check src/report.js && node --check src/review.js && node --check src/timeline-diff.js && node --check scripts/contracts-verify.js && node --check scripts/demo.js && node --check scripts/demo-build.js && node --check scripts/demo-dev.js && node --check scripts/eval.js && node --check packages/contracts/index.js && node --check apps/demo/app.js && node --check apps/demo/data.js",
+    "contracts:verify": "node scripts/contracts-verify.js",
+    "demo": "node scripts/demo.js",
+    "demo:build": "node scripts/demo-build.js",
+    "demo:dev": "node scripts/demo-dev.js",
+    "eval": "node scripts/eval.js",
+    "eval:synthetic": "node scripts/eval.js --synthetic=200",
+    "example": "node bin/truth-tools.js review --input examples/product-launch.json",
+    "pack:dry-run": "npm pack --dry-run"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0"
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "ajv": "^8.17.1"
   },
   "engines": {
     "node": ">=22"
@@ -34,7 +46,9 @@
     "project-status",
     "program-management",
     "tpm",
-    "audit"
+    "audit",
+    "json-schema",
+    "contracts"
   ],
   "author": "Hilmi Muktitama",
   "repository": {

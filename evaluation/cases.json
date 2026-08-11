@@ -1,0 +1,484 @@
+{
+  "version": "1.0.0",
+  "description": "Hand-written synthetic cases covering the artifact_quality and program_health policy matrix. Each case is a full StatusArtifact input with an exact expected outcome. Run with npm run eval.",
+  "base": {
+    "as_of": "2026-08-11T00:00:00.000Z",
+    "initiative": { "name": "Evaluation case" },
+    "policy": { "max_observation_age_days": 14, "max_source_content_age_days": 14 },
+    "sources": [
+      { "id": "s1", "type": "jira", "observed_at": "2026-08-10T00:00:00.000Z" },
+      { "id": "s2", "type": "note", "observed_at": "2026-08-09T00:00:00.000Z" }
+    ],
+    "claims": [
+      {
+        "id": "c1",
+        "kind": "fact",
+        "subject": "scope.phase",
+        "value": "phase-1",
+        "text": "Phase 1 is the current scope.",
+        "source_refs": [{ "source_id": "s1", "locator": "https://example.atlassian.net/browse/PLAT-1" }]
+      },
+      {
+        "id": "c2",
+        "kind": "fact",
+        "subject": "team.ready",
+        "value": true,
+        "text": "The team is ready.",
+        "source_refs": [{ "source_id": "s2", "locator": "https://example.com/notes/status" }]
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "canonical-pass-on-track",
+      "description": "Canonical metadata-only artifact with fresh sources and two cited facts.",
+      "input": {},
+      "expect": { "artifact_quality": "pass", "program_health": "on_track" }
+    },
+    {
+      "id": "blocker-health",
+      "description": "A blocker claim must make program_health blocked even when the artifact is clean.",
+      "input": {
+        "claims": [
+          {
+            "id": "b1",
+            "kind": "blocker",
+            "text": "Rollback owner is missing.",
+            "owner": "Platform TPM",
+            "due_at": "2026-08-14",
+            "source_refs": [{ "source_id": "s2", "locator": "https://example.com/notes/status" }]
+          }
+        ]
+      },
+      "expect": { "artifact_quality": "pass", "program_health": "blocked" }
+    },
+    {
+      "id": "risk-health",
+      "description": "A risk claim with no blocker makes program_health at_risk.",
+      "input": {
+        "claims": [
+          {
+            "id": "r1",
+            "kind": "risk",
+            "text": "Capacity is unverified.",
+            "owner": "Platform Engineering",
+            "mitigation": "Run the load test at 200% peak before release.",
+            "source_refs": [{ "source_id": "s2", "locator": "https://example.com/notes/status" }]
+          }
+        ]
+      },
+      "expect": { "artifact_quality": "pass", "program_health": "at_risk" }
+    },
+    {
+      "id": "unknown-health",
+      "description": "An unknown claim with no blocker makes program_health at_risk.",
+      "input": {
+        "claims": [
+          {
+            "id": "u1",
+            "kind": "unknown",
+            "text": "Owner is TBD.",
+            "owner": "Platform TPM",
+            "source_refs": [{ "source_id": "s2", "locator": "https://example.com/notes/status" }]
+          }
+        ]
+      },
+      "expect": { "artifact_quality": "pass", "program_health": "at_risk" }
+    },
+    {
+      "id": "blocker-missing-owner",
+      "description": "An active blocker without owner and due_at fails artifact quality.",
+      "input": {
+        "claims": [
+          {
+            "id": "b1",
+            "kind": "blocker",
+            "text": "Rollback owner is missing.",
+            "source_refs": [{ "source_id": "s2", "locator": "https://example.com/notes/status" }]
+          }
+        ]
+      },
+      "expect": {
+        "artifact_quality": "fail",
+        "program_health": "blocked",
+        "issues": ["blocker_missing_owner", "blocker_missing_due"]
+      }
+    },
+    {
+      "id": "risk-missing-mitigation",
+      "description": "An active risk without owner and mitigation needs review.",
+      "input": {
+        "claims": [
+          {
+            "id": "r1",
+            "kind": "risk",
+            "text": "Capacity is unverified.",
+            "source_refs": [{ "source_id": "s2", "locator": "https://example.com/notes/status" }]
+          }
+        ]
+      },
+      "expect": {
+        "artifact_quality": "needs_review",
+        "program_health": "at_risk",
+        "issues": ["risk_missing_owner", "risk_missing_mitigation"]
+      }
+    },
+    {
+      "id": "superseded-blocker-not-judged",
+      "description": "Only active claims participate in program health; superseded blockers are reported but never judged.",
+      "input": {
+        "claims": [
+          {
+            "id": "c1",
+            "kind": "fact",
+            "subject": "scope.phase",
+            "value": "phase-1",
+            "text": "Phase 1 is the current scope.",
+            "source_refs": [{ "source_id": "s1", "locator": "https://example.atlassian.net/browse/PLAT-1" }]
+          },
+          {
+            "id": "b1",
+            "kind": "blocker",
+            "state": "superseded",
+            "text": "The old rollback blocker was superseded.",
+            "source_refs": [{ "source_id": "s2", "locator": "https://example.com/notes/status" }]
+          }
+        ]
+      },
+      "expect": { "artifact_quality": "pass", "program_health": "on_track" }
+    },
+    {
+      "id": "historical-contradiction-ignored",
+      "description": "Historical claims cannot create contradictions; active facts decide.",
+      "input": {
+        "claims": [
+          {
+            "id": "c1",
+            "kind": "fact",
+            "subject": "scope.phase",
+            "value": "phase-1",
+            "text": "Phase 1 is the current scope.",
+            "source_refs": [{ "source_id": "s1", "locator": "https://example.atlassian.net/browse/PLAT-1" }]
+          },
+          {
+            "id": "c9",
+            "kind": "fact",
+            "state": "historical",
+            "subject": "scope.phase",
+            "value": "phase-0",
+            "text": "Phase 0 was the original scope.",
+            "source_refs": [{ "source_id": "s2", "locator": "https://example.com/notes/status" }]
+          }
+        ]
+      },
+      "expect": { "artifact_quality": "pass", "program_health": "on_track" }
+    },
+    {
+      "id": "contradiction-fails-quality",
+      "description": "Two cited facts with the same subject and different typed values are a contradiction.",
+      "input": {
+        "claims": [
+          {
+            "id": "c1",
+            "kind": "fact",
+            "subject": "scope.phase",
+            "value": "phase-1",
+            "text": "Phase 1 is the current scope.",
+            "source_refs": [{ "source_id": "s1", "locator": "https://example.atlassian.net/browse/PLAT-1" }]
+          },
+          {
+            "id": "c3",
+            "kind": "fact",
+            "subject": "scope.phase",
+            "value": "phase-2",
+            "text": "Phase 2 is now the scope.",
+            "source_refs": [{ "source_id": "s2", "locator": "https://example.com/notes/status" }]
+          }
+        ]
+      },
+      "expect": { "artifact_quality": "fail", "program_health": "on_track" }
+    },
+    {
+      "id": "typed-values-stay-distinct",
+      "description": "Number 1 and string \"1\" are different typed values and therefore conflict.",
+      "input": {
+        "claims": [
+          {
+            "id": "c1",
+            "kind": "fact",
+            "subject": "team.ready",
+            "value": true,
+            "text": "The team is ready.",
+            "source_refs": [{ "source_id": "s1", "locator": "https://example.atlassian.net/browse/PLAT-1" }]
+          },
+          {
+            "id": "c3",
+            "kind": "fact",
+            "subject": "team.ready",
+            "value": 1,
+            "text": "Team readiness scored 1.",
+            "source_refs": [{ "source_id": "s2", "locator": "https://example.com/notes/status" }]
+          }
+        ]
+      },
+      "expect": { "artifact_quality": "fail", "program_health": "on_track" }
+    },
+    {
+      "id": "stale-source",
+      "description": "A 41-day-old snapshot exceeds the 14-day observation policy and needs review.",
+      "input": {
+        "sources": [
+          { "id": "s1", "type": "jira", "observed_at": "2026-07-01T00:00:00.000Z" },
+          { "id": "s2", "type": "note", "observed_at": "2026-08-09T00:00:00.000Z" }
+        ]
+      },
+      "expect": { "artifact_quality": "needs_review", "program_health": "on_track", "issues": ["stale_observation"] }
+    },
+    {
+      "id": "stale-source-content",
+      "description": "A snapshot taken today of content last modified months ago is stale content.",
+      "input": {
+        "sources": [
+          {
+            "id": "s1",
+            "type": "jira",
+            "observed_at": "2026-08-10T00:00:00.000Z",
+            "source_updated_at": "2026-06-01T00:00:00.000Z"
+          },
+          { "id": "s2", "type": "note", "observed_at": "2026-08-09T00:00:00.000Z" }
+        ]
+      },
+      "expect": { "artifact_quality": "needs_review", "program_health": "on_track", "issues": ["stale_source_content"] }
+    },
+    {
+      "id": "future-source",
+      "description": "A source observed after as_of is a blocking evidence failure.",
+      "input": {
+        "sources": [
+          { "id": "s1", "type": "jira", "observed_at": "2026-08-12T00:00:00.000Z" },
+          { "id": "s2", "type": "note", "observed_at": "2026-08-09T00:00:00.000Z" }
+        ]
+      },
+      "expect": { "artifact_quality": "fail", "program_health": "on_track", "issues": ["future_source"] }
+    },
+    {
+      "id": "raw-source-body-rejected",
+      "description": "Raw source content is rejected; bodies stay in their system of record.",
+      "input": {
+        "sources": [
+          { "id": "s1", "type": "jira", "observed_at": "2026-08-10T00:00:00.000Z", "content": "Customer secret." },
+          { "id": "s2", "type": "note", "observed_at": "2026-08-09T00:00:00.000Z" }
+        ]
+      },
+      "expect": { "artifact_quality": "fail", "program_health": "on_track", "issues": ["raw_source_content"] }
+    },
+    {
+      "id": "unknown-source-ref",
+      "description": "A claim citing a source that does not exist in the artifact is a blocking failure.",
+      "input": {
+        "claims": [
+          {
+            "id": "c1",
+            "kind": "fact",
+            "text": "Unsupported claim.",
+            "source_refs": [{ "source_id": "ghost", "locator": "https://example.atlassian.net/browse/PLAT-999" }]
+          }
+        ]
+      },
+      "expect": { "artifact_quality": "fail", "program_health": "on_track", "issues": ["unknown_source_ref"] }
+    },
+    {
+      "id": "missing-source-ref-locator",
+      "description": "A cited source without a concrete locator needs review.",
+      "input": {
+        "claims": [
+          {
+            "id": "c1",
+            "kind": "fact",
+            "text": "Claim without a pointer.",
+            "source_refs": [{ "source_id": "s1" }]
+          }
+        ]
+      },
+      "expect": { "artifact_quality": "needs_review", "program_health": "on_track", "issues": ["missing_source_ref_locator"] }
+    },
+    {
+      "id": "missing-observed-at",
+      "description": "A source without observed_at cannot be aged and blocks the review.",
+      "input": {
+        "sources": [
+          { "id": "s1", "type": "jira" },
+          { "id": "s2", "type": "note", "observed_at": "2026-08-09T00:00:00.000Z" }
+        ]
+      },
+      "expect": { "artifact_quality": "fail", "program_health": "on_track", "issues": ["missing_observed_at"] }
+    },
+    {
+      "id": "duplicate-source-id",
+      "description": "Duplicate source identities block the review.",
+      "input": {
+        "sources": [
+          { "id": "s1", "type": "jira", "observed_at": "2026-08-10T00:00:00.000Z" },
+          { "id": "s1", "type": "note", "observed_at": "2026-08-10T00:00:00.000Z" },
+          { "id": "s2", "type": "note", "observed_at": "2026-08-09T00:00:00.000Z" }
+        ]
+      },
+      "expect": { "artifact_quality": "fail", "program_health": "on_track", "issues": ["duplicate_source_id"] }
+    },
+    {
+      "id": "object-claim-value-rejected",
+      "description": "Object values are rejected because typed scalar contradictions must stay deterministic.",
+      "input": {
+        "claims": [
+          {
+            "id": "c1",
+            "kind": "fact",
+            "subject": "scope.phase",
+            "value": { "phase": "phase-1" },
+            "text": "Phase 1 is the current scope.",
+            "source_refs": [{ "source_id": "s1", "locator": "https://example.atlassian.net/browse/PLAT-1" }]
+          }
+        ]
+      },
+      "expect": {
+        "artifact_quality": "fail",
+        "program_health": "on_track",
+        "issues": ["unsupported_claim_value", "incomplete_conflict_key"]
+      }
+    },
+    {
+      "id": "incomplete-conflict-key",
+      "description": "A subject without a value, or a value without a subject, needs review.",
+      "input": {
+        "claims": [
+          {
+            "id": "c1",
+            "kind": "fact",
+            "subject": "scope.phase",
+            "text": "Phase 1 is the current scope.",
+            "source_refs": [{ "source_id": "s1", "locator": "https://example.atlassian.net/browse/PLAT-1" }]
+          }
+        ]
+      },
+      "expect": { "artifact_quality": "needs_review", "program_health": "on_track", "issues": ["incomplete_conflict_key"] }
+    },
+    {
+      "id": "deprecated-forms-tolerated",
+      "description": "captured_at, sourceId, and plain-string refs are normalized and flagged, not rejected.",
+      "input": {
+        "sources": [
+          { "id": "s1", "type": "jira", "captured_at": "2026-08-10T00:00:00.000Z" }
+        ],
+        "claims": [
+          { "id": "c1", "kind": "fact", "text": "Legacy claim.", "source_refs": ["s1"] },
+          { "id": "c2", "kind": "fact", "text": "Legacy ref.", "source_refs": [{ "sourceId": "s1" }] }
+        ]
+      },
+      "expect": {
+        "artifact_quality": "needs_review",
+        "program_health": "on_track",
+        "issues": ["missing_source_ref_locator"],
+        "deprecations": ["deprecated_captured_at", "deprecated_string_source_ref", "deprecated_source_id"]
+      }
+    },
+    {
+      "id": "unsupported-claim-field",
+      "description": "Undocumented fields block the review instead of being silently dropped.",
+      "input": {
+        "claims": [
+          {
+            "id": "c1",
+            "kind": "fact",
+            "text": "Claim with confidence.",
+            "confidence": 0.9,
+            "source_refs": [{ "source_id": "s1", "locator": "https://example.atlassian.net/browse/PLAT-1" }]
+          }
+        ]
+      },
+      "expect": { "artifact_quality": "fail", "program_health": "on_track", "issues": ["unsupported_claim_field"] }
+    },
+    {
+      "id": "invalid-source-url",
+      "description": "A malformed source URL is a review-level issue.",
+      "input": {
+        "sources": [
+          { "id": "s1", "type": "jira", "observed_at": "2026-08-10T00:00:00.000Z", "url": "not a url" },
+          { "id": "s2", "type": "note", "observed_at": "2026-08-09T00:00:00.000Z" }
+        ]
+      },
+      "expect": { "artifact_quality": "needs_review", "program_health": "on_track", "issues": ["invalid_source_url"] }
+    },
+    {
+      "id": "source-updated-after-as-of",
+      "description": "A source that reports a change after as_of may make the snapshot stale.",
+      "input": {
+        "sources": [
+          {
+            "id": "s1",
+            "type": "jira",
+            "observed_at": "2026-08-10T00:00:00.000Z",
+            "source_updated_at": "2026-08-12T00:00:00.000Z"
+          },
+          { "id": "s2", "type": "note", "observed_at": "2026-08-09T00:00:00.000Z" }
+        ]
+      },
+      "expect": { "artifact_quality": "needs_review", "program_health": "on_track", "issues": ["source_updated_after_as_of"] }
+    },
+    {
+      "id": "no-claims",
+      "description": "An artifact without claims fails and has unknown program health.",
+      "input": { "claims": [] },
+      "expect": { "artifact_quality": "fail", "program_health": "unknown", "issues": ["no_claims"] }
+    },
+    {
+      "id": "unsupported-claim-kind",
+      "description": "An unsupported kind blocks the review; the claim is not classified.",
+      "input": {
+        "claims": [
+          {
+            "id": "c1",
+            "kind": "fact",
+            "text": "A valid claim stays classified.",
+            "source_refs": [{ "source_id": "s1", "locator": "https://example.atlassian.net/browse/PLAT-1" }]
+          },
+          {
+            "id": "x1",
+            "kind": "definitely",
+            "text": "Bad kind.",
+            "source_refs": [{ "source_id": "s1", "locator": "https://example.atlassian.net/browse/PLAT-1" }]
+          }
+        ]
+      },
+      "expect": { "artifact_quality": "fail", "program_health": "on_track", "issues": ["unsupported_claim_kind"] }
+    },
+    {
+      "id": "invalid-due-at",
+      "description": "An unparseable due date is a review-level issue.",
+      "input": {
+        "claims": [
+          {
+            "id": "c1",
+            "kind": "fact",
+            "text": "Claim with bad due date.",
+            "due_at": "not-a-date",
+            "source_refs": [{ "source_id": "s1", "locator": "https://example.atlassian.net/browse/PLAT-1" }]
+          }
+        ]
+      },
+      "expect": { "artifact_quality": "needs_review", "program_health": "on_track", "issues": ["invalid_due_at"] }
+    },
+    {
+      "id": "timeline-drift-tolerated",
+      "description": "Timeline drift is reported, not judged: a moved launch date does not fail the artifact.",
+      "input": {
+        "timeline": [
+          { "id": "t1", "title": "Launch", "type": "milestone", "start": "2026-08-20", "end": "2026-08-20", "status": "planned" }
+        ],
+        "baseline_timeline": [
+          { "id": "t1", "title": "Launch", "type": "milestone", "start": "2026-08-17", "end": "2026-08-17", "status": "planned" }
+        ]
+      },
+      "expect": { "artifact_quality": "pass", "program_health": "on_track" }
+    }
+  ]
+}

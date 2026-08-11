@@ -1,0 +1,4 @@
+key,summary,status,assignee,updated
+PLAT-123,Launch checkout migration,In Progress,Platform TPM,2026-08-10T08:00:00.000Z
+PLAT-124,Define rollback owner and runbook,Backlog,Unassigned,2026-08-10T09:00:00.000Z
+PLAT-125,Load test at 200% peak,In Progress,Platform Engineering,2026-08-11T07:30:00.000Z

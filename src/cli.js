@@ -5,7 +5,7 @@ import { callTruthTool } from "./mcp-tools.js";
 import { renderReviewMarkdown } from "./report.js";
 
 const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
-const REVIEW_FLAGS = new Set(["--input", "--format", "--out", "--fail-on"]);
+const REVIEW_FLAGS = new Set(["--input", "--format", "--out", "--fail-on", "--fail-on-health"]);
 
 export async function runCli(argv = []) {
   const [command, ...args] = argv;
@@ -43,7 +43,7 @@ export async function runCli(argv = []) {
   const input = readJsonInput(options.input);
   const review = callTruthTool("truth.review", input);
   const output = formatReview(review, options.format ?? "markdown");
-  const exitCode = exitCodeFor(review.readiness, options.failOn);
+  const exitCode = exitCodeFor(review, options.failOn, options.failOnHealth);
 
   if (options.out) {
     mkdirSync(dirname(options.out), { recursive: true });
@@ -79,6 +79,7 @@ function parseReviewFlags(args) {
 
 function flagName(flag) {
   if (flag === "--fail-on") return "failOn";
+  if (flag === "--fail-on-health") return "failOnHealth";
   return flag.slice(2);
 }
 
@@ -103,11 +104,26 @@ function formatReview(review, format) {
   throw new Error("--format must be markdown or json.");
 }
 
-function exitCodeFor(readiness, failOn) {
-  if (!failOn) return 0;
-  if (failOn === "blocked") return readiness === "blocked" ? 2 : 0;
-  if (failOn === "needs_review") return readiness === "ready" ? 0 : 2;
-  throw new Error("--fail-on must be blocked or needs_review.");
+export function exitCodeFor(review, failOn, failOnHealth) {
+  let code = 0;
+
+  if (failOn === "fail") {
+    code = review.artifact_quality === "fail" ? 2 : code;
+  } else if (failOn === "needs_review") {
+    code = review.artifact_quality !== "pass" ? 2 : code;
+  } else if (failOn !== undefined) {
+    throw new Error("--fail-on must be fail or needs_review.");
+  }
+
+  if (failOnHealth === "blocked") {
+    code = review.program_health === "blocked" ? 2 : code;
+  } else if (failOnHealth === "at_risk") {
+    code = review.program_health !== "on_track" ? 2 : code;
+  } else if (failOnHealth !== undefined) {
+    throw new Error("--fail-on-health must be blocked or at_risk.");
+  }
+
+  return code;
 }
 
 function assertNoArguments(args, command) {
@@ -125,15 +141,39 @@ function usage() {
 Usage:
   truth-tools review --input status.json [--format markdown|json] [--out report.md]
   cat status.json | truth-tools review --format json
-  truth-tools review --input status.json --fail-on blocked
+  truth-tools review --input status.json --fail-on needs_review
+  truth-tools review --input status.json --fail-on-health blocked
   truth-tools doctor
   truth-tools example
   truth-tools --version
 
-Input model:
-  as_of     required review timestamp
-  sources[] metadata only: id, type, url, captured_at
-  claims[]  explicit kind, text, optional subject/value, and source_refs
+Input model (StatusArtifact):
+  as_of             required review cutoff timestamp
+  sources[]         metadata only: id, type, observed_at, source_updated_at, url, owner
+  claims[]          explicit kind, text, optional subject/value, source_refs
+  timeline[]        optional plan items; baseline_timeline[] enables drift reporting
+
+Output:
+  artifact_quality  pass | needs_review | fail
+  program_health    on_track | at_risk | blocked | unknown
+
+Exit codes:
+  0  review completed and no gate is triggered
+  1  usage, input, or engine error
+  2  a gate is triggered
+
+Gates (independent, combinable, each exits 2 when triggered):
+  --fail-on fail           artifact_quality is fail
+  --fail-on needs_review   artifact_quality is needs_review or fail
+  --fail-on-health blocked program_health is blocked
+  --fail-on-health at_risk program_health is at_risk, blocked, or unknown
+
+Program health never changes the exit code by itself; gate it explicitly with
+--fail-on-health if you want CI to fail on a blocked or at-risk program.
+
+Deprecated compatibility forms are accepted and flagged in findings.deprecations:
+  captured_at (use observed_at), sourceId (use id), plain-string source_refs
+  (use { "source_id": "..." }).
 
 The tool does not infer facts from prose or fetch source bodies. It checks
 citation integrity, freshness, contradictions, blockers, risks, and unknowns.
@@ -154,7 +194,8 @@ function exampleInput() {
         id: "jira-release",
         type: "jira",
         url: "https://example.atlassian.net/browse/PLAT-123",
-        captured_at: "2026-08-10T08:00:00.000Z"
+        observed_at: "2026-08-10T08:00:00.000Z",
+        source_updated_at: "2026-08-10T08:00:00.000Z"
       }
     ],
     claims: [
@@ -164,7 +205,7 @@ function exampleInput() {
         subject: "launch.date",
         value: "2026-08-20",
         text: "Target launch date is August 20, 2026.",
-        source_refs: ["jira-release"]
+        source_refs: [{ source_id: "jira-release" }]
       }
     ]
   };

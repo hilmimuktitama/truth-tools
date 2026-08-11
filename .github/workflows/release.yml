@@ -1,0 +1,39 @@
+name: Release
+
+# Trusted publishing: the workflow builds and publishes only truth-tools using
+# OIDC provenance. The private contracts workspace is validated but never published.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - run: npm ci
+      - run: npm audit --audit-level=high
+      - run: npm test
+      - run: npm run check
+      - run: npm run contracts:verify
+      - run: npm run demo
+      - run: npm run demo:build
+      - run: npm run eval
+      - run: npm run eval:synthetic
+      - run: node bin/truth-tools.js doctor
+      - name: Verify the root package allowlist and contents
+        run: npm pack --dry-run
+      - name: Verify the private contracts package
+        run: (cd packages/contracts && npm pack --dry-run)
+      - name: Publish truth-tools with provenance
+        run: npm publish --provenance --access public

@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://truth-tools.dev/schemas/status-artifact.schema.json",
+  "title": "StatusArtifact",
+  "description": "Canonical input to truth.review: a stamped evidence container. kind and schema_version are required; the initiative declares name/owner/objective; policy splits observation-age from source-content-age; sources and claims are required; claims MUST be reviewed Claims (claim.schema.json), never CandidateClaims. The engine also accepts deprecated compatibility forms (captured_at, sourceId, plain-string source references, max_source_age_days alias) and reports them as deprecation findings.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "schema_version", "as_of", "initiative", "policy", "sources", "claims"],
+  "properties": {
+    "kind": {
+      "const": "status_artifact"
+    },
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "as_of": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,9})?(Z|[+-]\\d{2}:\\d{2}))?$",
+      "description": "Reproducible review cutoff timestamp; required so evidence-age checks are deterministic."
+    },
+    "initiative": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "owner": { "type": "string", "minLength": 1 },
+        "objective": { "type": "string", "minLength": 1 }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_observation_age_days", "max_source_content_age_days"],
+      "properties": {
+        "max_observation_age_days": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 14,
+          "description": "Maximum allowed age of the observed_at snapshot in days; older observations raise stale_observation."
+        },
+        "max_source_content_age_days": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 14,
+          "description": "Maximum allowed age of the source content (source_updated_at) in days; older content raises stale_source_content."
+        }
+      }
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "https://truth-tools.dev/schemas/source.schema.json"
+      }
+    },
+    "claims": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "https://truth-tools.dev/schemas/claim.schema.json"
+      },
+      "description": "Reviewed claims only; candidate capture output must be promoted to Claims first."
+    },
+    "timeline": {
+      "type": "array",
+      "items": {
+        "$ref": "https://truth-tools.dev/schemas/timeline-item.schema.json"
+      },
+      "description": "Current plan timeline."
+    },
+    "baseline_timeline": {
+      "type": "array",
+      "items": {
+        "$ref": "https://truth-tools.dev/schemas/timeline-item.schema.json"
+      },
+      "description": "Baseline plan timeline; when both timelines are present the review reports timeline drift."
+    }
+  }
+}
