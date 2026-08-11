@@ -15,8 +15,8 @@ Protect the default branch (`main`):
   contracts:verify`, `npm run demo`, `npm run demo:build`, `npm run eval`,
   gate checks on the broken/fixed fixtures, and `npm pack --dry-run`).
 - CI, Pages, and release workflows check out the default branches of
-  `hilmmkttm/capture-truth`, `hilmmkttm/timeline-truth`, and
-  `hilmmkttm/program-truth` under `components/` and set required sibling mode.
+  `hilmimuktitama/capture-truth`, `hilmimuktitama/timeline-truth`, and
+  `hilmimuktitama/program-truth` under `components/` and set required sibling mode.
   Merge compatible component changes before merging or tagging Truth Tools.
 - **Require branches to be up to date** before merging.
 - **Do not allow bypassing** for the settings above, except repository admins

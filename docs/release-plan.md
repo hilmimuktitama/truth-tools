@@ -7,13 +7,13 @@ actions have been executed.
 
 | Component | Version | Owner |
 | --- | --- | --- |
-| `capture-truth` | `0.5.0` | Capture maintainer |
+| `capture-truth` | `0.4.0` | Capture maintainer |
 | `timeline-truth` | `0.3.0` | Timeline maintainer |
 | `program-truth` | `0.2.0` | Program maintainer |
 | `truth-tools` | `0.3.0` | Suite/release maintainer |
 
-`capture-truth@0.5.0` is the rewrite release and supersedes the proposed
-`0.4` line. Each component owner owns its changelog, version, tests, tag, and
+`capture-truth@0.4.0` provides evidence-pack intake and normalized, deterministic
+capture output; it is not a truth linter. Each component owner owns its changelog, version, tests, tag, and
 published-package verification. The suite maintainer coordinates shared
 fixtures, order, and final verification.
 

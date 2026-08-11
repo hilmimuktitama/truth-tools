@@ -15,8 +15,9 @@ is `.github/workflows/release.yml`.
 - The review contract carries its own `schema_version: "1.0.0"` inside
   `TruthReview`; it is independent of the npm version and only bumps when the
   canonical schemas change incompatibly.
-- The coordinated release set is `capture-truth@0.5.0` (the rewrite,
-  superseding proposed `0.4`), `timeline-truth@0.3.0`,
+- The coordinated release set is `capture-truth@0.4.0` (evidence-pack intake
+  with normalized, deterministic capture output; not a truth linter),
+  `timeline-truth@0.3.0`,
   `program-truth@0.2.0`, and `truth-tools@0.3.0`. See the
   [suite release plan](release-plan.md).
 
