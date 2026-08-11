@@ -88,6 +88,11 @@ npm exec --yes --package truth-tools@0.3.0 -- \
 
 ## Releases
 
+The coordinated component versions, ownership, merge order, preconditions,
+stop conditions, and verification gates are in the
+[Truth Suite release plan](docs/release-plan.md). The operational workflow is
+in [docs/release-process.md](docs/release-process.md).
+
 Maintainers merge the release commit to `main`, wait for CI, tag that exact
 main commit (`v0.3.0`), and create a GitHub Release from the tag. Publishing the
 release starts the trusted `release.published` workflow, which checks out the

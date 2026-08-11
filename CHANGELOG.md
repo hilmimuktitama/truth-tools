@@ -8,6 +8,9 @@ aims to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Documented the coordinated Truth Suite release plan and component-first
+  process, including the Capture clean-worktree prerequisite and
+  `release.published` OIDC flow.
 - Standardized trusted releases on published GitHub Releases: the workflow
   checks out and validates a canonical semantic-version tag, confirms it
   resolves to `HEAD`, and compares it dynamically with `package.json` before

@@ -1,6 +1,7 @@
 # Release process
 
-Truth Tools publishes one npm package: `truth-tools` (CLI + MCP + contracts
+The Truth Suite publishes four coordinated packages. Truth Tools publishes one
+npm package: `truth-tools` (CLI + MCP + contracts
 loader). The `packages/contracts` workspace is private and contains the
 canonical schemas used by the root package; it is validated but never published.
 Releases follow
@@ -14,13 +15,22 @@ is `.github/workflows/release.yml`.
 - The review contract carries its own `schema_version: "1.0.0"` inside
   `TruthReview`; it is independent of the npm version and only bumps when the
   canonical schemas change incompatibly.
+- The coordinated release set is `capture-truth@0.5.0` (the rewrite,
+  superseding proposed `0.4`), `timeline-truth@0.3.0`,
+  `program-truth@0.2.0`, and `truth-tools@0.3.0`. See the
+  [suite release plan](release-plan.md).
 
 ## Before a release (maintainer)
 
 1. Update `CHANGELOG.md` with the release entry and set the version.
 2. Bump `version` in `package.json`; the private contracts workspace is not a
    separately released package.
-3. Run the full gate locally:
+3. Release compatible component changes to their default branches first.
+   Flagship CI checks those branches, so do not merge or tag Truth Tools until
+   component owners complete focused checks and package dry-runs. The Capture
+   owner must confirm the rewrite is prepared from a clean `capture-truth`
+   working tree.
+4. Run the full gate locally:
 
    ```bash
    npm ci
@@ -41,11 +51,11 @@ is `.github/workflows/release.yml`.
    under `components/` and requires them, so merge compatible component changes
    before releasing Truth Tools.
 
-4. `npm pack --dry-run` output is the **package allowlist** check: the tarball
+5. `npm pack --dry-run` output is the **package allowlist** check: the tarball
    must contain only `bin/`, `src/`, `packages/`, `scripts/`, `examples/`,
    `docs/`, `apps/`, `evaluation/`, `README.md`, `LICENSE`, `CHANGELOG.md` —
    and no capture/timeline binaries, secrets, or node_modules.
-5. Merge the release commit to `main`, wait for CI to pass, and create the
+6. Merge the release commit to `main`, wait for CI to pass, and create the
    exact tag `v<package-version>` on that main commit. Tags must match
    `^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$`. Create the GitHub Release from
    that tag; publishing the release starts the `release.published` workflow.
