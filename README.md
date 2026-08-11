@@ -86,6 +86,15 @@ npm exec --yes --package truth-tools@0.3.0 -- \
   truth-tools review --input status.json
 ```
 
+## Releases
+
+Maintainers merge the release commit to `main`, wait for CI, tag that exact
+main commit (`v0.3.0`), and create a GitHub Release from the tag. Publishing the
+release starts the trusted `release.published` workflow, which checks out the
+tag, runs the full gates, publishes only the root package with npm provenance,
+and then the maintainer verifies the provenance and published package. Manual
+dispatch requires the exact tag as its `tag` input.
+
 ## Input
 
 Truth Tools accepts source **metadata**, not raw Jira or document bodies.

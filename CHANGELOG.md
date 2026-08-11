@@ -8,6 +8,10 @@ aims to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Standardized trusted releases on published GitHub Releases: the workflow
+  checks out and validates a canonical semantic-version tag, confirms it
+  resolves to `HEAD`, and compares it dynamically with `package.json` before
+  running gates and publishing with npm provenance.
 - Fixed the owner used by CI, Pages, and release workflow checkouts for the
   sibling Truth repositories.
 - Made cross-repo demo integration portable with a configurable component root,

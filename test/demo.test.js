@@ -111,6 +111,23 @@ test("workflow sibling checkouts use the canonical GitHub owner", () => {
   }
 });
 
+test("release workflow uses a published release and validates the exact tag", () => {
+  const contents = readFileSync(new URL("../.github/workflows/release.yml", import.meta.url), "utf8");
+  assert.match(contents, /release:\n\s+types: \[published\]/);
+  assert.match(contents, /workflow_dispatch:[\s\S]*?tag:[\s\S]*?required: true/);
+  assert.match(contents, /github\.event\.release\.tag_name \|\| inputs\.tag/);
+  assert.match(contents, /grep -Eq '\^v\[0-9\]\+\\\.\[0-9\]\+\\\.\[0-9\]\+\(-\[0-9A-Za-z\.\-\]\+\)\?\$'/);
+  assert.match(contents, /ref: \$\{\{ steps\.release-tag\.outputs\.tag \}\}/);
+  assert.match(contents, /fetch-depth: 0/);
+  assert.match(contents, /git rev-parse "refs\/tags\/\$RELEASE_TAG\^\{commit\}"/);
+  assert.match(contents, /test "\$head_commit" = "\$tag_commit"/);
+  assert.match(contents, /test "\$\{RELEASE_TAG#v\}" = "\$version"/);
+  assert.equal(contents.includes('test "$version" = "0.3.0"'), false);
+  assert.equal(contents.includes("push:\n    tags:"), false);
+  assert.equal(contents.includes("NODE_AUTH_TOKEN"), false);
+  assert.equal(contents.includes("NPM_TOKEN"), false);
+});
+
 test("dist files match the demo sources byte for byte", () => {
   for (const file of ["index.html", "styles.css", "app.js", "data.js"]) {
     const source = readFileSync(new URL(`../apps/demo/${file}`, import.meta.url));

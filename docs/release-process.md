@@ -45,23 +45,31 @@ is `.github/workflows/release.yml`.
    must contain only `bin/`, `src/`, `packages/`, `scripts/`, `examples/`,
    `docs/`, `apps/`, `evaluation/`, `README.md`, `LICENSE`, `CHANGELOG.md` —
    and no capture/timeline binaries, secrets, or node_modules.
-5. Commit, push, then create and push the tag `v0.3.0`. Pushing the tag
-   triggers the release workflow.
+5. Merge the release commit to `main`, wait for CI to pass, and create the
+   exact tag `v<package-version>` on that main commit. Tags must match
+   `^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$`. Create the GitHub Release from
+   that tag; publishing the release starts the `release.published` workflow.
 
 ## The release workflow
 
-`.github/workflows/release.yml` runs on `v*` tags and:
+`.github/workflows/release.yml` runs when a GitHub Release is published and:
 
-1. checks out the tag plus the default branches of all three public sibling
-   repositories under `${{ github.workspace }}/components/`, then installs with
-   `npm ci`;
-2. runs `npm test`, `npm run check`, `npm run contracts:verify`, `npm run demo`,
+1. resolves the exact release tag (or the required manual-dispatch tag), checks
+   out that tag with full history, verifies the tag resolves to `HEAD`, and
+   verifies the tag without `v` matches the package version dynamically;
+2. checks out the default branches of all three public sibling repositories
+   under `${{ github.workspace }}/components/`, then installs with `npm ci`;
+3. runs `npm test`, `npm run check`, `npm run contracts:verify`, `npm run demo`,
    `npm run demo:build`, `npm run eval`, `npm run eval:synthetic`, and
     `node bin/truth-tools.js doctor`;
-3. runs `npm pack --dry-run` for the root package and the private contracts
+4. runs `npm pack --dry-run` for the root package and the private contracts
    workspace;
-4. publishes `truth-tools` with `npm publish --provenance --access public`.
+5. publishes `truth-tools` with `npm publish --provenance --access public`.
    The private contracts workspace is never published separately.
+
+The trusted sequence is: merge to `main` → wait for CI → tag the exact main
+commit → create the GitHub Release → let the `release.published` workflow run →
+verify npm provenance and the published package.
 
 ### Setting up trusted publishing (one-time)
 
@@ -71,8 +79,8 @@ is `.github/workflows/release.yml`.
    token with npm — **no registry token is stored in the repository**.
 3. Give the environment `contents: read` and `id-token: write` permissions
    (already declared in the workflow).
-4. Test with a prerelease tag (`v0.3.0-rc.1`) and verify the provenance
-   attestation: `npm view truth-tools dist.attestations` or the provenance
+4. After the exact `v<package-version>` release publishes, verify the provenance
+   attestation with `npm view truth-tools dist.attestations` or the provenance
    badge on the published version.
 
 ## Pages

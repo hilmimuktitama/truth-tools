@@ -4,9 +4,14 @@ name: Release
 # OIDC provenance. The private contracts workspace is validated but never published.
 
 on:
-  push:
-    tags:
-      - "v*"
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Exact release tag to publish (for example, v0.3.0)
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -19,7 +24,27 @@ jobs:
       TRUTH_SUITE_COMPONENT_ROOT: ${{ github.workspace }}/components
       TRUTH_SUITE_REQUIRE_SIBLINGS: "1"
     steps:
+      - name: Resolve release tag
+        id: release-tag
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          test -n "$RELEASE_TAG"
+          printf '%s\n' "$RELEASE_TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'
+          echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.release-tag.outputs.tag }}
+          fetch-depth: 0
+      - name: Verify release tag and package version
+        env:
+          RELEASE_TAG: ${{ steps.release-tag.outputs.tag }}
+        run: |
+          tag_commit="$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")"
+          head_commit="$(git rev-parse HEAD)"
+          test "$head_commit" = "$tag_commit"
+          version="$(node -p "require('./package.json').version")"
+          test "${RELEASE_TAG#v}" = "$version"
       - uses: actions/checkout@v4
         with:
           repository: hilmimuktitama/capture-truth
