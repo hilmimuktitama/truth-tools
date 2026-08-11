@@ -100,7 +100,8 @@ requests, no telemetry; it renders claim text with `textContent`, never HTML.
 ## Cross-component demo integration
 
 When the sibling repos (`capture-truth`, `timeline-truth`, `program-truth`)
-sit beside `truth-tools` in the workspace, `scripts/demo.js` loads them with
+are available under `TRUTH_SUITE_COMPONENT_ROOT` (default: the parent of the
+local OSS workspace), `scripts/demo.js` loads them with
 real dynamic imports and runs them against the same launch-readiness
 fixtures: capture-truth `captureSources` normalizes the evidence-pack
 sources, timeline-truth `createTimeline`/`diffTimelines` builds and diffs the
@@ -108,8 +109,10 @@ plan timelines, and Program Truth's canonical status artifact is mapped
 (`mapProgramArtifact`) into a `kind: "status_artifact"`,
 `schema_version: "1.0.0"` artifact and reviewed by this engine. The demo
 payload embeds deterministic, public-safe projections (a fixed capture clock,
-no raw source bodies); a missing sibling is reported as a failed demo step,
-never a crash. The browser demo renders these in a "Component truth" section.
+no raw source bodies). In a single-repo install, missing or incompatible
+components use the checked-in public-safe sibling projection and the demo
+reports fixture fallback; `TRUTH_SUITE_REQUIRE_SIBLINGS=1` makes that condition
+fatal. The browser demo renders these in a "Component truth" section.
 
 ## Boundaries (see ADRs 0001-0006)
 

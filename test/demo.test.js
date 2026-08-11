@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import test from "node:test";
 
-import { runDemo } from "../scripts/demo.js";
+import { loadSiblings, mapProgramArtifact, readProgramArtifact, runDemo, siblingSections } from "../scripts/demo.js";
 import { reviewTruth } from "../src/review.js";
 import { timelineDiff } from "../src/timeline-diff.js";
 import { freshnessRows } from "../apps/demo/app.js";
@@ -101,6 +101,16 @@ test("plan fixtures declare the public-safe marker", () => {
   assert.equal(current.public_safe, true);
 });
 
+test("workflow sibling checkouts use the canonical GitHub owner", () => {
+  for (const workflow of ["ci.yml", "pages.yml", "release.yml"]) {
+    const contents = readFileSync(new URL(`../.github/workflows/${workflow}`, import.meta.url), "utf8");
+    assert.equal(contents.includes("hilmmkttm/"), false, `${workflow} contains the stale owner`);
+    for (const repository of ["capture-truth", "timeline-truth", "program-truth"]) {
+      assert.equal(contents.includes(`repository: hilmimuktitama/${repository}`), true, `${workflow} checks out ${repository}`);
+    }
+  }
+});
+
 test("dist files match the demo sources byte for byte", () => {
   for (const file of ["index.html", "styles.css", "app.js", "data.js"]) {
     const source = readFileSync(new URL(`../apps/demo/${file}`, import.meta.url));
@@ -110,9 +120,7 @@ test("dist files match the demo sources byte for byte", () => {
 });
 
 test("sibling components wire in real cross-repo calls", async () => {
-  const capture = await import("../../capture-truth/src/capture.js");
-  const timelineMod = await import("../../timeline-truth/src/timeline.js");
-  const diffMod = await import("../../timeline-truth/src/diff.js");
+  const { capture, timelineMod, diffMod } = await loadSiblings();
   const fixed = readJson("../examples/launch-readiness/evidence-pack.json");
   const baseline = readJson("../examples/launch-readiness/baseline-plan.json");
   const current = readJson("../examples/launch-readiness/current-plan.json");
@@ -137,8 +145,7 @@ test("sibling components wire in real cross-repo calls", async () => {
 });
 
 test("the Program Truth example passes through canonical and reviews pass + blocked", async () => {
-  const { mapProgramArtifact } = await import("../scripts/demo.js");
-  const program = readJson("../../program-truth/examples/status-artifact.json");
+  const program = readProgramArtifact();
 
   const artifact = mapProgramArtifact(program);
   assert.equal(artifact.kind, "status_artifact");
@@ -168,4 +175,39 @@ test("the embedded sibling sections mirror live sibling output", async () => {
   assert.equal(sections.program.review.artifact_quality, "pass");
   assert.equal(sections.program.review.program_health, "blocked");
   assert.equal(JSON.stringify(sections), JSON.stringify(TRUTH_DEMO.sibling));
+});
+
+test("required sibling mode fails when the component root is missing", async () => {
+  const previousRoot = process.env.TRUTH_SUITE_COMPONENT_ROOT;
+  const previousRequired = process.env.TRUTH_SUITE_REQUIRE_SIBLINGS;
+  process.env.TRUTH_SUITE_COMPONENT_ROOT = "/tmp/truth-tools-no-siblings";
+  process.env.TRUTH_SUITE_REQUIRE_SIBLINGS = "1";
+  try {
+    await assert.rejects(() => loadSiblings(), /siblings unavailable/);
+  } finally {
+    if (previousRoot === undefined) delete process.env.TRUTH_SUITE_COMPONENT_ROOT;
+    else process.env.TRUTH_SUITE_COMPONENT_ROOT = previousRoot;
+    if (previousRequired === undefined) delete process.env.TRUTH_SUITE_REQUIRE_SIBLINGS;
+    else process.env.TRUTH_SUITE_REQUIRE_SIBLINGS = previousRequired;
+  }
+});
+
+test("optional sibling mode uses the checked-in projection without mutating demo data", async () => {
+  const previousRoot = process.env.TRUTH_SUITE_COMPONENT_ROOT;
+  const previousRequired = process.env.TRUTH_SUITE_REQUIRE_SIBLINGS;
+  const dataPath = new URL("../apps/demo/data.js", import.meta.url);
+  const before = statSync(dataPath).mtimeMs;
+  process.env.TRUTH_SUITE_COMPONENT_ROOT = "/tmp/truth-tools-no-siblings";
+  delete process.env.TRUTH_SUITE_REQUIRE_SIBLINGS;
+  try {
+    const result = await runDemo({ write: false, verbose: false });
+    assert.equal(result.ok, true);
+    assert.equal((await siblingSections()).capture.kind, "capture_truth_capture");
+    assert.equal(statSync(dataPath).mtimeMs, before);
+  } finally {
+    if (previousRoot === undefined) delete process.env.TRUTH_SUITE_COMPONENT_ROOT;
+    else process.env.TRUTH_SUITE_COMPONENT_ROOT = previousRoot;
+    if (previousRequired === undefined) delete process.env.TRUTH_SUITE_REQUIRE_SIBLINGS;
+    else process.env.TRUTH_SUITE_REQUIRE_SIBLINGS = previousRequired;
+  }
 });

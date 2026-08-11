@@ -1,5 +1,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 import { validateStatusArtifact } from "../src/contracts.js";
 import { normalizeDate, RAW_SOURCE_KEYS } from "../src/normalize.js";
@@ -13,20 +15,25 @@ import { buildDemo, verifyDist } from "./demo-build.js";
 const require = createRequire(import.meta.url);
 const PACKAGE_VERSION = require("../package.json").version;
 
-// Sibling component repos live beside truth-tools in the workspace and are
-// loaded with real dynamic imports: capture-truth captureSources, timeline-truth
-// createTimeline/diffTimelines, and the program-truth canonical status artifact.
-// They are optional at runtime (a missing sibling is reported, never fatal).
-const SIBLING_URLS = {
-  capture: new URL("../../capture-truth/src/capture.js", import.meta.url),
-  timeline: new URL("../../timeline-truth/src/timeline.js", import.meta.url),
-  diff: new URL("../../timeline-truth/src/diff.js", import.meta.url)
-};
-const PROGRAM_TRUTH_EXAMPLE = new URL("../../program-truth/examples/status-artifact.json", import.meta.url);
+// The default preserves the local OSS workspace layout. Packaged checkouts and
+// CI set TRUTH_SUITE_COMPONENT_ROOT to a directory containing the components.
+export function resolveComponentRoot() {
+  return path.resolve(process.env.TRUTH_SUITE_COMPONENT_ROOT || path.resolve(new URL("..", import.meta.url).pathname, ".."));
+}
+
+function siblingUrls(root = resolveComponentRoot()) {
+  return {
+    capture: pathToFileURL(path.join(root, "capture-truth", "src", "capture.js")),
+    timeline: pathToFileURL(path.join(root, "timeline-truth", "src", "timeline.js")),
+    diff: pathToFileURL(path.join(root, "timeline-truth", "src", "diff.js")),
+    program: path.join(root, "program-truth", "examples", "status-artifact.json")
+  };
+}
 
 const EXAMPLES = new URL("../examples/launch-readiness/", import.meta.url);
 const DATA_URL = new URL("../apps/demo/data.js", import.meta.url);
 const DEMO_AS_OF = "2026-08-11T00:00:00.000Z";
+let lastSiblingMode = "unknown";
 
 const DATA_HEADER =
   "// Public-safe demo data: raw source bodies are stripped by scripts/demo.js\n" +
@@ -79,19 +86,33 @@ function readJsonFile(url) {
   }
 }
 
-// Loads the sibling component repos beside truth-tools. A missing sibling is
-// reported as a failed demo check, never a crash: the rest of the demo stays
-// usable without them.
-async function loadSiblings() {
+export function requireSiblings() {
+  return process.env.TRUTH_SUITE_REQUIRE_SIBLINGS === "1";
+}
+
+export function readProgramArtifact() {
+  return readJsonFile(siblingUrls().program);
+}
+
+// Load real sibling components, or the checked-in public-safe projection when
+// this package is used without the sibling repositories.
+export async function loadSiblings() {
   try {
+    const urls = siblingUrls();
     const [capture, timelineMod, diffMod] = await Promise.all([
-      import(SIBLING_URLS.capture.href),
-      import(SIBLING_URLS.timeline.href),
-      import(SIBLING_URLS.diff.href)
+      import(urls.capture.href),
+      import(urls.timeline.href),
+      import(urls.diff.href)
     ]);
-    return { capture, timelineMod, diffMod, program: readJsonFile(PROGRAM_TRUTH_EXAMPLE) };
-  } catch {
-    return null;
+    const program = readJsonFile(urls.program);
+    if (typeof capture.captureSources !== "function" || typeof timelineMod.createTimeline !== "function" ||
+        typeof diffMod.diffTimelines !== "function" || !program) throw new Error("incompatible Truth Suite sibling");
+    return { mode: "live", capture, timelineMod, diffMod, program };
+  } catch (error) {
+    if (requireSiblings()) throw new Error(`Truth Suite siblings unavailable under ${resolveComponentRoot()}: ${error.message}`);
+    const { TRUTH_DEMO } = await import("../apps/demo/data.js");
+    if (!TRUTH_DEMO.sibling) throw new Error("checked-in sibling fixture projection is missing");
+    return { mode: "fixture", sibling: structuredClone(TRUTH_DEMO.sibling), reason: "live Truth Suite siblings unavailable; using checked-in fixture projection" };
   }
 }
 
@@ -172,7 +193,8 @@ export function mapProgramArtifact(program) {
 // Every projection is deterministic and public-safe (no raw source bodies).
 export async function siblingSections() {
   const siblings = await loadSiblings();
-  if (!siblings) return null;
+  lastSiblingMode = siblings.mode;
+  if (siblings.mode === "fixture") return siblings.sibling;
   const { capture, timelineMod, diffMod, program } = siblings;
   const fixed = readJson("evidence-pack.json");
   const baseline = readJson("baseline-plan.json");
@@ -299,7 +321,8 @@ export async function runDemo({ write = false, verbose = true } = {}) {
   const payload = await demoPayload();
 
   const sibling = payload.sibling ?? null;
-  step("sibling:components-present", Boolean(sibling), "capture-truth, timeline-truth, and program-truth must sit beside truth-tools in the workspace");
+  const live = lastSiblingMode === "live";
+  step("sibling:components-present", Boolean(sibling), live ? "live Truth Suite components loaded" : "using checked-in public-safe sibling fixture projection");
   if (sibling) {
     step(
       "sibling:capture-sources",
@@ -330,7 +353,7 @@ export async function runDemo({ write = false, verbose = true } = {}) {
     );
   }
 
-  if (write) {
+  if (write && live) {
     writeFileSync(new URL("truth-review-broken.json", EXAMPLES), brokenJson);
     writeFileSync(new URL("truth-review-broken.md", EXAMPLES), brokenMd);
     writeFileSync(new URL("truth-review-fixed.json", EXAMPLES), fixedJson);
@@ -341,6 +364,8 @@ export async function runDemo({ write = false, verbose = true } = {}) {
     buildDemo({ verbose: false });
     step("write:reports", true, "regenerated review reports and timeline drift");
     step("write:demo-data", true, "regenerated apps/demo/data.js and dist");
+  } else if (write && !live) {
+    step("write:demo-data", true, "fixture fallback verified; checked-in sibling projection was not overwritten");
   }
 
   step("drift:broken-json", jsonFile("truth-review-broken.json") === brokenJson);

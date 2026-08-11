@@ -43,7 +43,12 @@ Fixing the evidence does not fix the program. It makes the blocker
 trustworthy.
 
 The demo also runs the real sibling components against the same fixtures when
-they sit beside `truth-tools` in the workspace: capture-truth normalizes the
+they are available. Set `TRUTH_SUITE_COMPONENT_ROOT` to a directory containing
+`capture-truth/`, `timeline-truth/`, and `program-truth/`; it defaults to the
+parent workspace for the local OSS checkout. Without those repositories the
+demo verifies the checked-in public-safe projection and reports fixture
+fallback. Set `TRUTH_SUITE_REQUIRE_SIBLINGS=1` to make absence or API drift a
+hard failure. The real sibling integration calls capture-truth to normalize the
 evidence-pack sources, timeline-truth rebuilds and diffs the plan timelines,
 and Program Truth's canonical status artifact is mapped into this engine and
 reviewed here (it validates as `pass` quality with `blocked` health). The

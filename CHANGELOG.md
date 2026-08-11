@@ -6,6 +6,14 @@ aims to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- Fixed the owner used by CI, Pages, and release workflow checkouts for the
+  sibling Truth repositories.
+- Made cross-repo demo integration portable with a configurable component root,
+  required-sibling CI mode, and a clearly reported checked-in fixture fallback
+  for single-repository installs.
+
 ### Added (0.3.0, this branch)
 
 - **Strict semantic RFC3339 timestamps.** Canonical Source and SourceRef

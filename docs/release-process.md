@@ -34,7 +34,12 @@ is `.github/workflows/release.yml`.
     node bin/truth-tools.js doctor
     npm pack --dry-run
     (cd packages/contracts && npm pack --dry-run)
-   ```
+    ```
+
+   Run it with the converged sibling repositories available. CI checks out the
+   default branches of `capture-truth`, `timeline-truth`, and `program-truth`
+   under `components/` and requires them, so merge compatible component changes
+   before releasing Truth Tools.
 
 4. `npm pack --dry-run` output is the **package allowlist** check: the tarball
    must contain only `bin/`, `src/`, `packages/`, `scripts/`, `examples/`,
@@ -47,7 +52,9 @@ is `.github/workflows/release.yml`.
 
 `.github/workflows/release.yml` runs on `v*` tags and:
 
-1. checks out the tag and installs with `npm ci`;
+1. checks out the tag plus the default branches of all three public sibling
+   repositories under `${{ github.workspace }}/components/`, then installs with
+   `npm ci`;
 2. runs `npm test`, `npm run check`, `npm run contracts:verify`, `npm run demo`,
    `npm run demo:build`, `npm run eval`, `npm run eval:synthetic`, and
     `node bin/truth-tools.js doctor`;

@@ -10,8 +10,24 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      TRUTH_SUITE_COMPONENT_ROOT: ${{ github.workspace }}/components
+      TRUTH_SUITE_REQUIRE_SIBLINGS: "1"
     steps:
       - uses: actions/checkout@v4
+      - name: Checkout Truth Suite components
+        uses: actions/checkout@v4
+        with:
+          repository: hilmimuktitama/capture-truth
+          path: components/capture-truth
+      - uses: actions/checkout@v4
+        with:
+          repository: hilmimuktitama/timeline-truth
+          path: components/timeline-truth
+      - uses: actions/checkout@v4
+        with:
+          repository: hilmimuktitama/program-truth
+          path: components/program-truth
       - uses: actions/setup-node@v4
         with:
           node-version: 22
