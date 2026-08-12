@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -193,6 +194,19 @@ test("doctor and version are machine-readable", async () => {
   const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
   assert.equal(version.result, 0);
   assert.equal(version.stdout, `${pkg.version}\n`);
+});
+
+test("example is a canonical stdout artifact that round-trips through JSON review", () => {
+  const example = spawnSync(process.execPath, ["bin/truth-tools.js", "example"], { encoding: "utf8" });
+  assert.equal(example.status, 0, example.stderr);
+  const review = spawnSync(process.execPath, ["bin/truth-tools.js", "review", "--format", "json"], {
+    input: example.stdout,
+    encoding: "utf8"
+  });
+  assert.equal(review.status, 0, review.stderr);
+  const output = JSON.parse(review.stdout);
+  assert.equal(output.artifact_quality, "pass");
+  assert.equal(output.program_health, "on_track");
 });
 
 test("review rejects unknown, missing, and duplicate flags", async () => {

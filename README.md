@@ -2,10 +2,8 @@
 
 [![CI](https://github.com/hilmimuktitama/truth-tools/actions/workflows/ci.yml/badge.svg)](https://github.com/hilmimuktitama/truth-tools/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-> **Release status:** This branch contains `0.3.0`, the flagship reset. npm
-> currently serves `0.2.0`, the legacy umbrella line, which is untagged in
-> this repository and replaced by this version. Use this branch checkout
-> until the reset is merged and released.
+> **Source status:** This checkout is the prepared current `0.3.1` patch source;
+> it is not published until the exact version tag and release gates pass.
 
 Truth Tools is a **deterministic evidence gate** for project-status
 artifacts. It checks the structure of a supplied status report — every claim
@@ -59,7 +57,7 @@ browser demo renders a "Component truth" section from those live results.
 Requires Node.js 22 or newer.
 
 ```bash
-git clone --branch portfolio/truth-suite-convergence-2026-08-11 --single-branch \
+git clone --branch main --single-branch \
   https://github.com/hilmimuktitama/truth-tools.git
 cd truth-tools
 npm ci
@@ -79,10 +77,10 @@ See the [portfolio case study](docs/portfolio.md), the
 [product reset](docs/product-reset.md), and the
 [review that drove it](docs/product-review.md).
 
-After `0.3.0` is published, the package command will be:
+The package command is:
 
 ```bash
-npm exec --yes --package truth-tools@0.3.0 -- \
+npm exec --yes --package truth-tools@0.3.1 -- \
   truth-tools review --input status.json
 ```
 
@@ -94,7 +92,7 @@ stop conditions, and verification gates are in the
 in [docs/release-process.md](docs/release-process.md).
 
 Maintainers merge the release commit to `main`, wait for CI, tag that exact
-main commit (`v0.3.0`), and create a GitHub Release from the tag. Publishing the
+main commit (`v0.3.1`), and create a GitHub Release from the tag. Publishing the
 release starts the trusted `release.published` workflow, which checks out the
 tag, runs the full gates, publishes only the root package with npm provenance,
 and then the maintainer verifies the provenance and published package. Manual
@@ -111,13 +109,16 @@ locale-dependent or timezone-free dates are rejected.
 
 ```json
 {
+  "kind": "status_artifact",
+  "schema_version": "1.0.0",
   "as_of": "2026-08-11T00:00:00.000Z",
   "initiative": {
     "name": "Checkout migration",
     "owner": "Platform TPM"
   },
   "policy": {
-    "max_source_age_days": 14
+    "max_observation_age_days": 14,
+    "max_source_content_age_days": 14
   },
   "sources": [
     {
@@ -135,7 +136,7 @@ locale-dependent or timezone-free dates are rejected.
       "subject": "launch.date",
       "value": "2026-08-20",
       "text": "Target launch date is August 20, 2026.",
-      "source_refs": [{ "source_id": "jira-release" }]
+      "source_refs": [{ "source_id": "jira-release", "locator": "https://example.atlassian.net/browse/PLAT-123" }]
     }
   ]
 }
@@ -188,10 +189,13 @@ winner; it reports the disagreement and asks for owner reconciliation.
 
 ### Freshness
 
-Evidence age is `as_of` minus `observed_at`; a source older than
-`max_source_age_days` raises a `needs_review` finding. A `source_updated_at`
-after `as_of` means the source changed after your cutoff — the snapshot may
-be stale relative to the source — and is also a review-level finding.
+Observation age is `as_of - observed_at`; content age is `as_of -
+source_updated_at`. A snapshot gap is `source_updated_at - observed_at` when
+`observed_at < source_updated_at <= as_of`; it raises
+`source_updated_after_observation` with source id and timestamps. An update
+after `as_of` raises `source_updated_after_as_of`. Thresholds use raw
+milliseconds; displayed durations are rounded only for presentation. These
+three dimensions and their findings are independent.
 See ADR-0003.
 
 ## CLI
@@ -240,14 +244,14 @@ From a source checkout, configure the stdio server directly:
 }
 ```
 
-After `0.3.0` is published, use the package binary:
+Use the package binary:
 
 ```json
 {
   "mcpServers": {
     "truth-tools": {
       "command": "npx",
-      "args": ["-y", "--package=truth-tools@0.3.0", "truth-tools-mcp"]
+      "args": ["-y", "--package=truth-tools@0.3.1", "truth-tools-mcp"]
     }
   }
 }
@@ -269,7 +273,7 @@ orchestrate nine low-level tools correctly.
 Canonical JSON Schema Draft 2020-12 contracts live in
 [`packages/contracts/schemas/`](packages/contracts/schemas/): Source,
 SourceRef, CandidateClaim, Claim, TimelineItem, StatusArtifact, and
-TruthReview. They are private workspace sources shipped through the root
+TruthReview, and the `suite-lock` contract. They are private workspace sources shipped through the root
 `truth-tools` npm package and are enforced in this repository by `npm run contracts:verify`
 (schema registration, `$ref` resolution, engine/schema enum parity, fixture
 validation, and conformance of engine output — including output for failing
@@ -277,7 +281,7 @@ artifacts).
 
 ## Evaluation
 
-`npm run eval` runs 28 hand-written policy-matrix cases; `npm run
+`npm run eval` runs 30 hand-written policy-matrix cases; `npm run
 eval:synthetic` adds 200 seeded synthetic cases (both run in CI). Metrics:
 pass rate, per-dimension accuracy, and issue precision/recall with false
 positives counted on every case — `expect.issues` lists are complete

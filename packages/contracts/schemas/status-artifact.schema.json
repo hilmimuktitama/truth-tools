@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://truth-tools.dev/schemas/status-artifact.schema.json",
   "title": "StatusArtifact",
-  "description": "Canonical input to truth.review: a stamped evidence container. kind and schema_version are required; the initiative declares name/owner/objective; policy splits observation-age from source-content-age; sources and claims are required; claims MUST be reviewed Claims (claim.schema.json), never CandidateClaims. The engine also accepts deprecated compatibility forms (captured_at, sourceId, plain-string source references, max_source_age_days alias) and reports them as deprecation findings.",
+  "description": "Canonical input to truth.review: a stamped evidence container. kind and schema_version are required; the initiative declares name/owner/objective; policy splits observation age from content age; sources and claims are required; claims MUST be reviewed Claims (claim.schema.json), never CandidateClaims. The engine also accepts deprecated compatibility forms (captured_at, sourceId, plain-string source references, max_source_age_days alias) and reports them as deprecation findings. A snapshot gap is the interval source_updated_at - observed_at when the update is within as_of; it is reported independently of both ages.",
   "type": "object",
   "additionalProperties": false,
   "required": ["kind", "schema_version", "as_of", "initiative", "policy", "sources", "claims"],

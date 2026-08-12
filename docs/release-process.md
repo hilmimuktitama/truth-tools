@@ -10,15 +10,14 @@ is `.github/workflows/release.yml`.
 
 ## Versioning
 
-- `0.3.0` is the version on this branch; the legacy npm `0.2.0` is untagged
-  here and replaced by 0.3.0.
+- `0.3.1` is the current patch version and is published from an exact tag.
 - The review contract carries its own `schema_version: "1.0.0"` inside
   `TruthReview`; it is independent of the npm version and only bumps when the
   canonical schemas change incompatibly.
-- The coordinated release set is `capture-truth@0.4.0` (evidence-pack intake
+- The coordinated release set is `capture-truth@0.4.1` (evidence-pack intake
   with normalized, deterministic capture output; not a truth linter),
-  `timeline-truth@0.3.0`,
-  `program-truth@0.2.0`, and `truth-tools@0.3.0`. See the
+  `timeline-truth@0.3.1`,
+  `program-truth@0.2.1`, and `truth-tools@0.3.1`. See the
   [suite release plan](release-plan.md).
 
 ## Before a release (maintainer)
@@ -26,11 +25,9 @@ is `.github/workflows/release.yml`.
 1. Update `CHANGELOG.md` with the release entry and set the version.
 2. Bump `version` in `package.json`; the private contracts workspace is not a
    separately released package.
-3. Release compatible component changes to their default branches first.
-   Flagship CI checks those branches, so do not merge or tag Truth Tools until
-   component owners complete focused checks and package dry-runs. The Capture
-   owner must confirm the rewrite is prepared from a clean `capture-truth`
-   working tree.
+3. Release compatible component changes first. The suite lock is authoritative:
+    do not merge or tag Truth Tools until its exact component SHAs point at
+    committed, version-checked sibling releases.
 4. Run the full gate locally:
 
    ```bash
@@ -47,10 +44,8 @@ is `.github/workflows/release.yml`.
     (cd packages/contracts && npm pack --dry-run)
     ```
 
-   Run it with the converged sibling repositories available. CI checks out the
-   default branches of `capture-truth`, `timeline-truth`, and `program-truth`
-   under `components/` and requires them, so merge compatible component changes
-   before releasing Truth Tools.
+    Run it with the sibling repositories checked out at the refs in
+    `suite-lock.json`; CI and release verify those exact refs.
 
 5. `npm pack --dry-run` output is the **package allowlist** check: the tarball
    must contain only `bin/`, `src/`, `packages/`, `scripts/`, `examples/`,
@@ -68,8 +63,8 @@ is `.github/workflows/release.yml`.
 1. resolves the exact release tag (or the required manual-dispatch tag), checks
    out that tag with full history, verifies the tag resolves to `HEAD`, and
    verifies the tag without `v` matches the package version dynamically;
-2. checks out the default branches of all three public sibling repositories
-   under `${{ github.workspace }}/components/`, then installs with `npm ci`;
+2. checks out all three public sibling repositories at the exact refs in
+   `suite-lock.json`, then installs with `npm ci`;
 3. runs `npm test`, `npm run check`, `npm run contracts:verify`, `npm run demo`,
    `npm run demo:build`, `npm run eval`, `npm run eval:synthetic`, and
     `node bin/truth-tools.js doctor`;
@@ -97,8 +92,7 @@ verify npm provenance and the published package.
 ## Pages
 
 `.github/workflows/pages.yml` builds `apps/demo/dist` and deploys it to
-GitHub Pages on pushes to `main` and `v*` tags. It is defined but not
-executed on this branch; enabling it requires the repository setting
+GitHub Pages on pushes to `main` and `v*` tags. Enabling it requires the repository setting
 "Pages → Source: GitHub Actions" (see `docs/github-settings.md`). The
 workflow verifies `npm run demo` before uploading so stale fixtures can
 never be deployed.

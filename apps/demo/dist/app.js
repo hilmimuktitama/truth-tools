@@ -86,10 +86,8 @@ function renderVerdict() {
 }
 
 // Pure freshness computation shared by the browser and the test suite. Each
-// source gets two independent dimensions, matching the engine's two policies:
-// observation age (observed_at -> as_of vs max_observation_age_days) and
-// source-content age (source_updated_at -> as_of vs max_source_content_age_days).
-// A missing source_updated_at yields contentAgeDays: null, never NaN.
+// source gets observation age, content age, and snapshot gap. A missing
+// source_updated_at yields null values, never NaN.
 export function freshnessRows(review) {
   const obsMax = review.policy.max_observation_age_days;
   const contentMax = review.policy.max_source_content_age_days;
@@ -108,7 +106,9 @@ export function freshnessRows(review) {
       contentAgeDays,
       contentMax,
       contentStale: contentAgeDays !== null && contentAgeDays > contentMax,
-      contentMissing: contentAgeDays === null
+      contentMissing: contentAgeDays === null,
+      snapshotGapDays: source.source_updated_at ? daysBetween(source.observed_at, source.source_updated_at) : null,
+      snapshotGapMissing: !source.source_updated_at
     };
   });
 }
@@ -131,8 +131,10 @@ function renderFreshness() {
     name.textContent = label;
     const detail = el("span");
     detail.textContent = missing
-      ? "no source update recorded — cannot age content"
-      : `age ${ageDays.toFixed(1)}d${stale ? ` — STALE (> ${maxDays}d policy)` : ` — within ${maxDays}d policy`}`;
+      ? "no source update recorded — cannot calculate this dimension"
+      : maxDays === null
+        ? `gap ${ageDays.toFixed(1)}d — source update after observation`
+        : `age ${ageDays.toFixed(1)}d${stale ? ` — STALE (> ${maxDays}d policy)` : ` — within ${maxDays}d policy`}`;
     meta.append(name, detail);
     const row = el("div", "freshness-row");
     row.append(meta, bar);
@@ -154,6 +156,7 @@ function renderFreshness() {
       entry.contentStale,
       entry.contentMissing
     );
+    renderRow(`${entry.id} (${entry.type}) — snapshot gap`, entry.snapshotGapDays, null, false, entry.snapshotGapMissing);
   }
 
   if (review.sources.length === 0) {

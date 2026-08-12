@@ -83,7 +83,7 @@ entities.
     "source_updated_at": "2026-08-10T08:00:00.000Z"
   }],
   "claims": [{ "id": "c1", "kind": "fact", "text": "x",
-    "source_refs": [{ "source_id": "jira", "note": "What this supports" }] }]
+    "source_refs": [{ "source_id": "jira", "locator": "https://example.atlassian.net/browse/PLAT-123", "note": "What this supports" }] }]
 }
 ```
 

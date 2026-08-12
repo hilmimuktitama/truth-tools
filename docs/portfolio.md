@@ -86,7 +86,7 @@ npm run demo:dev    # static browser demo at http://127.0.0.1:4173/
 ```
 
 The demo toggles broken vs fixed evidence and shows freshness dimensions
-(`observed_at` age, source-updated-after-snapshot gaps), claim categories,
+(observation age, content age, and source-update snapshot gaps), claim categories,
 conflicts, recommended actions, and timeline drift (the launch moved from
 August 17 to August 20, the load test slipped, a rollback-owner item was
 added — drift is reported, never judged). It is responsive, keyboard- and
@@ -108,7 +108,7 @@ truth-tools review --input status.json --fail-on-health blocked        # health 
   only on quality unless `--fail-on-health` is passed.
 - **Reproducible time boundary.** `as_of` is required; ambiguous or
   timezone-free dates are rejected.
-- **Freshness split (ADR-0003).** `observed_at` vs `source_updated_at`;
+- **Freshness split (ADR-0003).** Observation age, content age, and snapshot gap;
   `captured_at` is a tolerated, flagged deprecation.
 - **Typed contradiction keys.** `1` and `"1"` remain different; object and
   null values are rejected rather than guessed.

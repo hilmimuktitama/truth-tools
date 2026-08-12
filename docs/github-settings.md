@@ -14,7 +14,7 @@ Protect the default branch (`main`):
   ci.yml` (runs `npm ci`, `npm test`, `npm run check`, `npm run
   contracts:verify`, `npm run demo`, `npm run demo:build`, `npm run eval`,
   gate checks on the broken/fixed fixtures, and `npm pack --dry-run`).
-- CI, Pages, and release workflows check out the default branches of
+- CI, Pages, and release workflows check out the exact refs from `suite-lock.json` for
   `hilmimuktitama/capture-truth`, `hilmimuktitama/timeline-truth`, and
   `hilmimuktitama/program-truth` under `components/` and set required sibling mode.
   Merge compatible component changes before merging or tagging Truth Tools.
@@ -52,15 +52,13 @@ Protect the default branch (`main`):
 - **Community files**: `CONTRIBUTING.md`, `CHANGELOG.md`, `LICENSE`,
   `SECURITY.md` are referenced from the README.
 
-## Workflows included but not executed here
+## Workflow activation
 
-`pages.yml` and `release.yml` are part of the repository and documented, but
-neither runs on this branch: `pages.yml` only fires on `main`/`v*`, and
-`release.yml` only on `v*` tags. No deployment or publication is executed
-from this branch work.
+`pages.yml` fires on `main`/`v*`; `release.yml` fires on published releases or
+explicit manual dispatch. No deployment or publication is executed by local
+repository commands.
 
 ## Deleting
 
-The legacy npm `0.2.0` release is untagged here. If it exists in the npm
-registry, it is replaced by publishing `0.3.0`; retiring `0.2.0` from the
-registry is an npm-side decision, not a repository setting.
+The current package release is `0.3.1`; package retirement and deprecation are
+npm-side decisions, not repository settings.

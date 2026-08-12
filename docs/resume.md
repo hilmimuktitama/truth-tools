@@ -30,7 +30,7 @@ for space.
 - Shipped a static, responsive, accessible browser demo with no login and no
   telemetry, a deterministic timeline-drift diff, and freshness dimensions
   (`observed_at` vs `source_updated_at`).
-- Added a repeatable evaluation harness: 28 hand-written policy cases plus a
+- Added a repeatable evaluation harness: 30 hand-written policy cases plus a
   seeded synthetic generator reporting pass rate, per-dimension accuracy, and
   issue precision/recall.
 - Released via trusted publishing with npm provenance and explicit package

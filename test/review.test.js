@@ -512,6 +512,42 @@ test("a source updated after as_of needs review", () => {
   assert.equal(review.findings.issues.some((item) => item.type === "source_updated_after_as_of"), true);
 });
 
+test("reports a source update after observation and before as_of as a review-level snapshot gap", () => {
+  const input = baseInput();
+  input.sources[0].observed_at = "2026-08-10T00:00:00.000Z";
+  input.sources[0].source_updated_at = "2026-08-10T12:00:00.500Z";
+
+  const review = reviewTruth(input);
+  const finding = review.findings.issues.find((item) => item.type === "source_updated_after_observation");
+
+  assert.equal(review.artifact_quality, "needs_review");
+  assert.deepEqual(
+    { source_id: finding.source_id, observed_at: finding.observed_at, source_updated_at: finding.source_updated_at, as_of: finding.as_of },
+    { source_id: "jira", observed_at: "2026-08-10T00:00:00.000Z", source_updated_at: "2026-08-10T12:00:00.500Z", as_of: "2026-08-11T00:00:00.000Z" }
+  );
+  assert.equal(finding.gap_days, 0.5);
+  assert.equal(review.findings.issues.some((item) => item.type === "source_updated_after_as_of"), false);
+});
+
+test("does not report a snapshot gap when timestamps are equal", () => {
+  const input = baseInput();
+  input.sources[0].source_updated_at = input.sources[0].observed_at;
+  assert.equal(reviewTruth(input).findings.issues.some((item) => item.type === "source_updated_after_observation"), false);
+});
+
+test("reports stale content and snapshot gap simultaneously", () => {
+  const input = baseInput();
+  input.policy.max_source_content_age_days = 1;
+  input.sources[0].observed_at = "2026-08-01T00:00:00.000Z";
+  input.sources[0].source_updated_at = "2026-08-09T12:00:00.250Z";
+
+  const review = reviewTruth(input);
+  const types = review.findings.issues.map((item) => item.type);
+  assert.equal(types.includes("stale_source_content"), true);
+  assert.equal(types.includes("source_updated_after_observation"), true);
+  assert.equal(types.includes("source_updated_after_as_of"), false);
+});
+
 test("requires as_of for reproducible reviews", () => {
   const input = baseInput();
   delete input.as_of;
@@ -569,6 +605,37 @@ test("treats fractional source age beyond the policy boundary as stale", () => {
 
   assert.equal(review.artifact_quality, "needs_review");
   assert.equal(stale.age_days, 14.5);
+});
+
+test("freshness thresholds use raw milliseconds at equality and plus one millisecond", () => {
+  const day = 86_400_000;
+  const cases = [
+    ["observed_at", "stale_observation"],
+    ["source_updated_at", "stale_source_content"]
+  ];
+  for (const [field, findingType] of cases) {
+    const exact = baseInput();
+    exact.policy = { max_observation_age_days: 14, max_source_content_age_days: 14 };
+    exact.sources[0][field] = new Date(new Date(exact.as_of).getTime() - 14 * day).toISOString();
+    assert.equal(reviewTruth(exact).findings.issues.some((item) => item.type === findingType), false, `${field} equality`);
+
+    const plusOne = baseInput();
+    plusOne.policy = { max_observation_age_days: 14, max_source_content_age_days: 14 };
+    plusOne.sources[0][field] = new Date(new Date(plusOne.as_of).getTime() - 14 * day - 1).toISOString();
+    const finding = reviewTruth(plusOne).findings.issues.find((item) => item.type === findingType);
+    assert.ok(finding, `${field} +1ms`);
+    assert.equal(finding.age_milliseconds, 14 * day + 1);
+  }
+});
+
+test("snapshot gap uses raw milliseconds while presentation remains rounded", () => {
+  const input = baseInput();
+  input.sources[0].observed_at = "2026-08-10T00:00:00.000Z";
+  input.sources[0].source_updated_at = "2026-08-10T00:00:00.001Z";
+  const finding = reviewTruth(input).findings.issues.find((item) => item.type === "source_updated_after_observation");
+  assert.ok(finding);
+  assert.equal(finding.gap_milliseconds, 1);
+  assert.equal(finding.gap_days, 0);
 });
 
 test("reports timeline drift when baseline and current timelines are present", () => {

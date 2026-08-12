@@ -1,7 +1,7 @@
 // Public-safe demo data: raw source bodies are stripped by scripts/demo.js
 // and asserted absent before this file is written or deployed to Pages.
 export const TRUTH_DEMO = {
-  "version": "0.3.0",
+  "version": "0.3.1",
   "publicSafe": true,
   "broken": {
     "as_of": "2026-08-11T00:00:00.000Z",
@@ -298,7 +298,8 @@ export const TRUTH_DEMO = {
           "location": "sources[0]",
           "message": "Source 'jira-release' was observed 21.667 days ago; policy allows 7 (stale_observation).",
           "source_id": "jira-release",
-          "age_days": 21.667
+          "age_days": 21.667,
+          "age_milliseconds": 1872000000
         },
         {
           "type": "stale_source_content",
@@ -306,7 +307,8 @@ export const TRUTH_DEMO = {
           "location": "sources[0]",
           "message": "Source 'jira-release' content was last updated 21.667 days ago; policy allows 3 (stale_source_content).",
           "source_id": "jira-release",
-          "age_days": 21.667
+          "age_days": 21.667,
+          "age_milliseconds": 1872000000
         },
         {
           "type": "stale_observation",
@@ -314,7 +316,8 @@ export const TRUTH_DEMO = {
           "location": "sources[1]",
           "message": "Source 'decision-log' was observed 9.417 days ago; policy allows 7 (stale_observation).",
           "source_id": "decision-log",
-          "age_days": 9.417
+          "age_days": 9.417,
+          "age_milliseconds": 813600000
         },
         {
           "type": "stale_source_content",
@@ -322,7 +325,8 @@ export const TRUTH_DEMO = {
           "location": "sources[1]",
           "message": "Source 'decision-log' content was last updated 9.417 days ago; policy allows 3 (stale_source_content).",
           "source_id": "decision-log",
-          "age_days": 9.417
+          "age_days": 9.417,
+          "age_milliseconds": 813600000
         },
         {
           "type": "blocker_missing_owner",
@@ -1541,7 +1545,7 @@ export const TRUTH_DEMO = {
   "sibling": {
     "capture": {
       "kind": "capture_truth_evidence_pack",
-      "schema_version": "0.4.0",
+      "schema_version": "0.4.1",
       "generated_at": "2026-08-11T00:00:00.000Z",
       "sources": [
         {

@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Exact release tag to publish (for example, v0.3.0)
+        description: Exact release tag to publish (for example, v0.3.1)
         required: true
         type: string
 
@@ -36,6 +36,9 @@ jobs:
         with:
           ref: ${{ steps.release-tag.outputs.tag }}
           fetch-depth: 0
+      - name: Resolve suite-lock refs
+        id: suite-lock
+        run: node scripts/suite-lock-verify.js --github-output --release >> "$GITHUB_OUTPUT"
       - name: Verify release tag and package version
         env:
           RELEASE_TAG: ${{ steps.release-tag.outputs.tag }}
@@ -49,14 +52,17 @@ jobs:
         with:
           repository: hilmimuktitama/capture-truth
           path: components/capture-truth
+          ref: ${{ steps.suite-lock.outputs.capture_truth_ref }}
       - uses: actions/checkout@v4
         with:
           repository: hilmimuktitama/timeline-truth
           path: components/timeline-truth
+          ref: ${{ steps.suite-lock.outputs.timeline_truth_ref }}
       - uses: actions/checkout@v4
         with:
           repository: hilmimuktitama/program-truth
           path: components/program-truth
+          ref: ${{ steps.suite-lock.outputs.program_truth_ref }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -67,6 +73,8 @@ jobs:
           npm --version
           test "$(npm --version)" = "12.0.2"
       - run: npm ci
+      - name: Verify suite lock and checkout exact refs
+        run: node scripts/suite-lock-verify.js --component-root "$TRUTH_SUITE_COMPONENT_ROOT" --verify-checkouts
       - run: npm audit --audit-level=high
       - run: npm test
       - run: npm run check

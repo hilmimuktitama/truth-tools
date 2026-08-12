@@ -12,7 +12,7 @@ export const TIMELINE_TYPES = ["task", "milestone"];
 export const DATE_DERIVATIONS = ["explicit", "natural", "none"];
 export const EVIDENCE_GRADES = ["exact", "derived", "fuzzy", "missing"];
 
-const ajv = new Ajv2020({ allErrors: true, strict: true, allowUnionTypes: true });
+const ajv = new Ajv2020({ allErrors: true, strict: true, strictRequired: false, allowUnionTypes: true });
 
 // Ajv's built-in date-time format is intentionally not enabled for Draft
 // 2020-12. Keep the contract's full-timezone shape regex, and add the

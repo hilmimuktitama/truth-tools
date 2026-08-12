@@ -17,13 +17,16 @@ synthetic suite (`npm run eval:synthetic`, also wired into CI), and reports:
   including clean cases: any finding the case did not declare is a false
   positive (a noisy engine cannot hide behind sparse expectations); recall
   counts expected findings the engine missed;
-- **seeded defect detection** — each seeded synthetic case injects exactly
-  one documented defect; detection recall is the fraction of defects whose
-  complete issue signature was found, with unexpected-finding counts reported
-  as false positives, all repeatable via the fixed seed `0x74727574`.
+- **overall conformance** — all expected quality/health/findings match with no
+  unexpected findings;
+- **seeded defect detection** — only synthetic mutations classified as
+  `defect` count toward defect recall. Valid health behavior (blocker, risk,
+  unknown) and valid tolerance behavior (timeline drift) are reported as
+  conformance cases, not defects. Defect recall is the fraction of defect
+  mutations whose complete issue signature was found.
 
 `expect.issues` and `expect.deprecations` in `cases.json` are complete
-specifications: undeclared findings fail the case. The 28 hand-written cases
+specifications: undeclared findings fail the case. The 30 hand-written cases
 cover the full policy matrix: pass/needs_review/fail quality,
 on_track/at_risk/blocked/unknown health, typed contradictions (`1` vs `"1"`),
 stale/future sources, raw-body rejection, unknown refs, duplicates,

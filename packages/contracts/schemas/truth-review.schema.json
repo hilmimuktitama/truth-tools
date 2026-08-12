@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://truth-tools.dev/schemas/truth-review.schema.json",
   "title": "TruthReview",
-  "description": "Deterministic review result. artifact_quality describes the evidence structure of the supplied artifact; program_health describes the state of the program the active claims report. The two dimensions are independent: an artifact can pass review while the program is blocked. Only claims with state active participate in contradictions and program health.",
+  "description": "Deterministic review result. artifact_quality describes the evidence structure of the supplied artifact; program_health describes the state of the program the active claims report. The two dimensions are independent: an artifact can pass review while the program is blocked. Freshness findings distinguish observation age (as_of - observed_at), content age (as_of - source_updated_at), and snapshot gap (source_updated_at - observed_at). Only claims with state active participate in contradictions and program health.",
   "type": "object",
   "additionalProperties": false,
   "required": [

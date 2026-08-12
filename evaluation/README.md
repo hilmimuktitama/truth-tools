@@ -20,7 +20,7 @@ the release gate.
 
 `cases.json` contains hand-written cases covering the full policy matrix:
 
-- artifact quality: pass, needs_review (stale source, incomplete contradiction key, invalid URL, due date, source updated after `as_of`), fail (raw source bodies, unknown refs, missing timestamps, duplicates, unsupported fields and values, contradictions, no sources/claims);
+- artifact quality: pass, needs_review (observation age, content age, snapshot gap, incomplete contradiction key, invalid URL, due date, source update after `as_of`), fail (raw source bodies, unknown refs, missing timestamps, duplicates, unsupported fields and values, contradictions, no sources/claims);
 - program health: on_track, at_risk (risk or unknown), blocked (blocker), unknown (no classified claims);
 - compatibility: `captured_at`, `sourceId`, and plain-string refs must normalize and be flagged as deprecations without failing the review;
 - typed contradictions: `1` and `"1"` must remain distinct;
@@ -42,10 +42,11 @@ expectation matches and nothing extra was reported.
   including clean cases with an empty expected list — any undeclared finding
   is a false positive, so a noisy engine cannot hide behind sparse
   expectations. Recall counts expected findings the engine missed;
-- **seeded defect detection** (synthetic runs): each seeded case injects one
-  documented defect; detection recall is the fraction of defects whose
-  complete issue signature was found, and unexpected-finding counts are
-  reported separately as false positives. Repeatability is guaranteed by the
+- **overall conformance**: exact match rate across all cases;
+- **seeded defect detection** (synthetic runs): only mutations marked `defect`
+  count toward recall. Blocker/risk/unknown health mutations and timeline
+  drift are valid behavior/tolerance cases, not defects. Unexpected findings
+  remain separate false-positive signals. Repeatability is guaranteed by the
   fixed seed.
 
 Metrics are printed for the combined hand-written plus synthetic set.
