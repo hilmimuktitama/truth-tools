@@ -46,8 +46,9 @@ test("suite lock rejects an unexpected repository identity", () => {
   assert.match(result.failures.join("\n"), /repository identity/);
 });
 
-test("process accepts the exact workflow command style with a separate component-root value", () => {
-  const componentRoot = "/Users/hlmmkttm/workspace/personal/oss";
+test("process accepts the exact workflow command style with a separate component-root value", (context) => {
+  const componentRoot = process.env.TRUTH_SUITE_COMPONENT_ROOT;
+  if (!componentRoot) return context.skip("sibling component root is not configured");
   const result = spawnSync(process.execPath, [
     "scripts/suite-lock-verify.js",
     "--component-root",
