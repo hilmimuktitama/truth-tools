@@ -327,15 +327,16 @@ export function normalizeSource(raw, { index, asOf, policy, issues, deprecations
       issue("future_source", "blocking", location, `Source '${id}' is observed after as_of.`, { source_id: id })
     );
   } else {
+    const ageMilliseconds = asOfTime - observedTime;
     const ageDays = differenceInDays(observedAt, asOf);
-    if (ageDays > policy.max_observation_age_days) {
+    if (ageMilliseconds > policy.max_observation_age_days * 86_400_000) {
       issues.push(
         issue(
           "stale_observation",
           "review",
           location,
           `Source '${id}' was observed ${ageDays} days ago; policy allows ${policy.max_observation_age_days} (stale_observation).`,
-          { source_id: id, age_days: ageDays }
+          { source_id: id, age_days: ageDays, age_milliseconds: ageMilliseconds }
         )
       );
     }
@@ -359,19 +360,42 @@ export function normalizeSource(raw, { index, asOf, policy, issues, deprecations
             "review",
             location,
             `Source '${id}' reports an update after as_of; the snapshot may be stale relative to the source.`,
-            { source_id: id }
+            { source_id: id, observed_at: observedAt, source_updated_at: sourceUpdatedAt, as_of: asOf }
           )
         );
       } else {
+        // A source may have changed after this snapshot while still being
+        // inside the review cutoff. This is distinct from source_updated_after_as_of:
+        // the latter says the source changed after the review boundary, while
+        // this finding says the snapshot predates a known change in the window.
+        if (observedTime < updatedTime && updatedTime <= asOfTime) {
+          issues.push(
+            issue(
+              "source_updated_after_observation",
+              "review",
+              location,
+              `Source '${id}' was updated ${differenceInDays(observedAt, sourceUpdatedAt)} days after the snapshot and before or at as_of.`,
+              {
+                source_id: id,
+                observed_at: observedAt,
+                source_updated_at: sourceUpdatedAt,
+                as_of: asOf,
+                gap_days: differenceInDays(observedAt, sourceUpdatedAt),
+                gap_milliseconds: updatedTime - observedTime
+              }
+            )
+          );
+        }
+        const contentAgeMilliseconds = asOfTime - updatedTime;
         const contentAgeDays = differenceInDays(sourceUpdatedAt, asOf);
-        if (contentAgeDays > policy.max_source_content_age_days) {
+        if (contentAgeMilliseconds > policy.max_source_content_age_days * 86_400_000) {
           issues.push(
             issue(
               "stale_source_content",
               "review",
               location,
               `Source '${id}' content was last updated ${contentAgeDays} days ago; policy allows ${policy.max_source_content_age_days} (stale_source_content).`,
-              { source_id: id, age_days: contentAgeDays }
+              { source_id: id, age_days: contentAgeDays, age_milliseconds: contentAgeMilliseconds }
             )
           );
         }

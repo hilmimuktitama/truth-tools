@@ -40,7 +40,7 @@ export async function runCli(argv = []) {
   }
 
   const options = parseReviewFlags(args);
-  const input = readJsonInput(options.input);
+  const input = await readJsonInput(options.input);
   const review = callTruthTool("truth.review", input);
   const output = formatReview(review, options.format ?? "markdown");
   const exitCode = exitCodeFor(review, options.failOn, options.failOnHealth);
@@ -83,19 +83,18 @@ function flagName(flag) {
   return flag.slice(2);
 }
 
-function readJsonInput(inputPath) {
-  const text = inputPath ? readFileSync(inputPath, "utf8") : readStdin();
+async function readJsonInput(inputPath) {
+  const text = inputPath ? readFileSync(inputPath, "utf8") : await readStdin();
   if (!text.trim()) throw new Error("No input. Pass --input <file> or pipe JSON to stdin.");
   return JSON.parse(text.replace(/^\uFEFF/, ""));
 }
 
-function readStdin() {
+async function readStdin() {
   if (process.stdin.isTTY) return "";
-  try {
-    return readFileSync(0, "utf8");
-  } catch {
-    return "";
-  }
+  let text = "";
+  process.stdin.setEncoding("utf8");
+  for await (const chunk of process.stdin) text += chunk;
+  return text;
 }
 
 function formatReview(review, format) {
@@ -182,13 +181,15 @@ citation integrity, freshness, contradictions, blockers, risks, and unknowns.
 
 function exampleInput() {
   return {
+    kind: "status_artifact",
+    schema_version: "1.0.0",
     as_of: "2026-08-11T00:00:00.000Z",
     initiative: {
       name: "Checkout migration",
       owner: "Platform TPM",
       objective: "Move checkout traffic without unresolved rollout risk."
     },
-    policy: { max_source_age_days: 14 },
+    policy: { max_observation_age_days: 14, max_source_content_age_days: 14 },
     sources: [
       {
         id: "jira-release",
@@ -205,7 +206,7 @@ function exampleInput() {
         subject: "launch.date",
         value: "2026-08-20",
         text: "Target launch date is August 20, 2026.",
-        source_refs: [{ source_id: "jira-release" }]
+        source_refs: [{ source_id: "jira-release", locator: "https://example.atlassian.net/browse/PLAT-123" }]
       }
     ]
   };

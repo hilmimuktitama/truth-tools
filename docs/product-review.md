@@ -8,7 +8,7 @@ The problem is real: project updates routinely hide stale evidence, conflicting 
 
 The old version combined evidence capture, timeline parsing, program reconciliation, rendering, update checks, a web workflow, and nine MCP tools. That made it hard to explain, hard for an agent to call correctly, and hard to demonstrate in one minute. For a portfolio project, unproven breadth is not impressive. It reads as unfinished architecture.
 
-## Post-review correction (this branch)
+## Post-review correction (prepared current source)
 
 The first 0.3 simplification kept one flaw from the legacy line: a single
 `readiness` value that mixed evidence quality with program state. This

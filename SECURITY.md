@@ -2,9 +2,7 @@
 
 ## Supported versions
 
-Only the current release line is supported. As of this branch the supported
-version is **0.3.0** (unreleased). The legacy 0.2.0 npm release is not
-supported and is replaced by 0.3.0.
+Only the current release line is supported. The supported version is **0.3.1**.
 
 ## Reporting a vulnerability
 

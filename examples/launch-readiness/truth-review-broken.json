@@ -207,7 +207,8 @@
         "location": "sources[0]",
         "message": "Source 'jira-release' was observed 21.667 days ago; policy allows 7 (stale_observation).",
         "source_id": "jira-release",
-        "age_days": 21.667
+        "age_days": 21.667,
+        "age_milliseconds": 1872000000
       },
       {
         "type": "stale_source_content",
@@ -215,7 +216,8 @@
         "location": "sources[0]",
         "message": "Source 'jira-release' content was last updated 21.667 days ago; policy allows 3 (stale_source_content).",
         "source_id": "jira-release",
-        "age_days": 21.667
+        "age_days": 21.667,
+        "age_milliseconds": 1872000000
       },
       {
         "type": "stale_observation",
@@ -223,7 +225,8 @@
         "location": "sources[1]",
         "message": "Source 'decision-log' was observed 9.417 days ago; policy allows 7 (stale_observation).",
         "source_id": "decision-log",
-        "age_days": 9.417
+        "age_days": 9.417,
+        "age_milliseconds": 813600000
       },
       {
         "type": "stale_source_content",
@@ -231,7 +234,8 @@
         "location": "sources[1]",
         "message": "Source 'decision-log' content was last updated 9.417 days ago; policy allows 3 (stale_source_content).",
         "source_id": "decision-log",
-        "age_days": 9.417
+        "age_days": 9.417,
+        "age_milliseconds": 813600000
       },
       {
         "type": "blocker_missing_owner",

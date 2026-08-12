@@ -1,0 +1,10 @@
+{
+  "$schema": "https://truth-tools.dev/schemas/suite-lock.schema.json",
+  "schema_version": "1.0.0",
+  "suite": "truth-suite",
+  "components": {
+    "capture-truth": { "repository": "hilmimuktitama/capture-truth", "ref": "931f5b4600093d4b947f6aaa950917d8b5330635", "version": "0.4.1" },
+    "timeline-truth": { "repository": "hilmimuktitama/timeline-truth", "ref": "2b08ea75c930b02112a12f17a4de152898d7b5a7", "version": "0.3.1" },
+    "program-truth": { "repository": "hilmimuktitama/program-truth", "ref": "473466e61736eb833f8417a84f94779ea5980884", "version": "0.2.1" }
+  }
+}

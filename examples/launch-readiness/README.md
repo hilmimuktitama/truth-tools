@@ -6,7 +6,7 @@ The `examples/launch-readiness/` directory is the integrated showcase for Truth 
 
 The checkout migration is scheduled to launch. The status artifact claims the launch date, the release freeze, and a blocker: the rollback decision has no accountable owner (PLAT-124 has no assignee).
 
-- **Broken evidence** (`status-artifact-broken.json`) embeds a raw Jira body, omits `observed_at` on one source, keeps a stale decision-log snapshot, lets the Jira tracker and the decision log contradict each other about `launch.date`, and still carries the rollback blocker. The review result is **artifact_quality: fail, program_health: blocked** (`truth-review-broken.json` / `.md`).
+- **Broken evidence** (`status-artifact-broken.json`) embeds a raw Jira body, omits `observed_at` on one source, keeps stale observation/content ages, lets the Jira tracker and the decision log contradict each other about `launch.date`, and still carries the rollback blocker. The review result is **artifact_quality: fail, program_health: blocked** (`truth-review-broken.json` / `.md`).
 - **Fixed evidence** (`evidence-pack.json`, mirrored by `status-artifact-fixed.json`) records only source metadata, adds `observed_at` and `source_updated_at` everywhere, reconciles the launch date, and keeps the blocker visible with an owner and a due date. The review result is **artifact_quality: pass, program_health: blocked** (`truth-review-fixed.json` / `.md`).
 
 The point: artifact quality and program health are independent dimensions. Clean evidence does not make the program healthy; it makes the blocker trustworthy.

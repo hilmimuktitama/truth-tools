@@ -16,6 +16,7 @@ import {
 import { contracts } from "../packages/contracts/index.js";
 import { reviewTruth } from "../src/review.js";
 import { timelineDiff } from "../src/timeline-diff.js";
+import { readSuiteLock, verifySuiteLock } from "./suite-lock-verify.js";
 
 const SCHEMA_DIR = new URL("../packages/contracts/schemas/", import.meta.url);
 
@@ -74,7 +75,7 @@ function runChecks(check) {
   }
   for (const name of CONTRACT_NAMES) collectRefs(contracts[name]);
   const registeredIds = new Set(Object.values(contracts).map((schema) => schema.$id));
-  const unresolved = [...refs].filter((ref) => !registeredIds.has(ref));
+  const unresolved = [...refs].filter((ref) => !ref.startsWith("#/") && !registeredIds.has(ref));
   check("schemas:refs-resolve", unresolved.length === 0, unresolved.join(", ") || "all refs resolve");
 
   // 3. Engine enums match schema enums (no drift between code and contracts).
@@ -105,6 +106,16 @@ function runChecks(check) {
       contracts["candidate-claim"].properties.review_status.const === "unreviewed",
     "candidate claims carry no final kind and are always keyword/unreviewed"
   );
+  const candidateClaim = validateContract("candidate-claim", {
+    id: "candidate-1",
+    text: "Candidate text.",
+    classification_method: "keyword",
+    review_status: "unreviewed",
+    source_refs: [{ source_id: "cap-1", locator: "https://example.com/cap-1" }],
+    derivation_version: "0.4.1",
+    source_material: "metadata"
+  });
+  check("conformance:candidate-claim-final-schema", candidateClaim.valid, firstErrors(candidateClaim.errors));
   check(
     "contract:status-artifact-kind-version",
     contracts["status-artifact"].properties.kind.const === "status_artifact" &&
@@ -169,6 +180,11 @@ function runChecks(check) {
     !brokenCheck.valid,
     brokenCheck.valid ? "broken fixture unexpectedly validated" : firstErrors(brokenCheck.errors)
   );
+  const lock = readSuiteLock();
+  const lockCheck = validateContract("suite-lock", lock);
+  check("suite-lock:schema-valid", lockCheck.valid, firstErrors(lockCheck.errors));
+  const lockRuntime = verifySuiteLock({ lock });
+  check("suite-lock:exact-refs-and-versions", lockRuntime.ok, lockRuntime.failures.join("; "));
 
   // 4b. Canonical extension conformance: raw_included provenance metadata and
   // Timeline Truth source-ref provenance fields validate; real raw bodies

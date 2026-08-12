@@ -9,7 +9,8 @@ export const CONTRACT_NAMES = [
   "claim",
   "timeline-item",
   "status-artifact",
-  "truth-review"
+  "truth-review",
+  "suite-lock"
 ];
 
 function load(name) {

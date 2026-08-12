@@ -50,6 +50,7 @@ const BASE_ARTIFACT = {
 const MUTATIONS = [
   {
     name: "blocker-claim",
+    category: "valid-health",
     apply: (artifact) => {
       artifact.claims.push({
         id: "b1",
@@ -64,6 +65,7 @@ const MUTATIONS = [
   },
   {
     name: "risk-claim",
+    category: "valid-health",
     apply: (artifact) => {
       artifact.claims.push({
         id: "r1",
@@ -78,6 +80,7 @@ const MUTATIONS = [
   },
   {
     name: "unknown-claim",
+    category: "valid-health",
     apply: (artifact) => {
       artifact.claims.push({
         id: "u1",
@@ -210,6 +213,13 @@ const MUTATIONS = [
     expect: { artifact_quality: "needs_review", program_health: "on_track", issues: ["source_updated_after_as_of"] }
   },
   {
+    name: "source-updated-after-observation",
+    apply: (artifact) => {
+      artifact.sources[0].source_updated_at = "2026-08-10T12:00:00.500Z";
+    },
+    expect: { artifact_quality: "needs_review", program_health: "on_track", issues: ["source_updated_after_observation"] }
+  },
+  {
     name: "empty-claims",
     apply: (artifact) => {
       artifact.claims = [];
@@ -237,6 +247,7 @@ const MUTATIONS = [
   },
   {
     name: "timeline-drift-tolerated",
+    category: "valid-tolerance",
     apply: (artifact) => {
       artifact.timeline = [
         { id: "t1", title: "Launch", type: "milestone", start: "2026-08-20", end: "2026-08-20", status: "planned" }
@@ -259,6 +270,7 @@ function generateSyntheticCases(count) {
     cases.push({
       id: `synth-${String(index + 1).padStart(3, "0")}`,
       description: `synthetic: ${mutation.name}`,
+      category: mutation.category ?? "defect",
       input: artifact,
       expect: mutation.expect
     });
@@ -312,6 +324,7 @@ export function evaluateCase(testCase) {
   return {
     id: testCase.id,
     description: testCase.description,
+    category: testCase.category ?? "defect",
     ok: problems.length === 0,
     problems,
     unexpectedCount: unexpectedIssues.length + unexpectedDeprecations.length,
@@ -362,6 +375,7 @@ export function summarize(results) {
     truePositive,
     falsePositive,
     falseNegative
+    ,overallConformance: total > 0 ? passed / total : 0
   };
 }
 
@@ -371,10 +385,11 @@ export function defectMetrics(syntheticResults) {
   // engine's findings match the defect's complete spec. Cases whose findings
   // include anything the spec did not declare count as unexpected findings
   // (false positives). The fixed seed makes every run repeatable.
-  const defects = syntheticResults.length;
-  const detected = syntheticResults.filter((result) => result.ok).length;
-  const withUnexpected = syntheticResults.filter((result) => result.unexpectedCount > 0).length;
-  const unexpectedFindings = syntheticResults.reduce((sum, result) => sum + result.unexpectedCount, 0);
+  const defectResults = syntheticResults.filter((result) => result.category === "defect");
+  const defects = defectResults.length;
+  const detected = defectResults.filter((result) => result.ok).length;
+  const withUnexpected = defectResults.filter((result) => result.unexpectedCount > 0).length;
+  const unexpectedFindings = defectResults.reduce((sum, result) => sum + result.unexpectedCount, 0);
 
   return {
     defects,
@@ -410,6 +425,7 @@ export function runEvaluation({ syntheticCount = 0, verbose = true, list = false
   if (verbose) {
     console.log(`Truth Tools evaluation (${raw.version ?? "1.0.0"}):`);
     console.log(`  handwritten cases: ${cases.length}, synthetic cases: ${synthetic.length}`);
+    console.log(`  overall conformance: ${(metrics.overallConformance * 100).toFixed(1)}%`);
     console.log(
       `  pass rate: ${metrics.passed}/${metrics.total} (${(metrics.passRate * 100).toFixed(1)}%)`
     );
@@ -423,7 +439,7 @@ export function runEvaluation({ syntheticCount = 0, verbose = true, list = false
     );
     if (synthetic.length > 0) {
       console.log(
-        `  seeded defect detection: ${defect.detected}/${defect.defects} detected ` +
+        `  seeded defect detection: ${defect.detected}/${defect.defects} defects detected ` +
           `(recall ${formatRate(defect.detectionRecall)}), ` +
           `${defect.casesWithUnexpectedFindings} cases had unexpected findings (${defect.unexpectedFindings} findings total), ` +
           "repeatable via fixed seed 0x74727574"

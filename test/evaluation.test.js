@@ -32,6 +32,7 @@ test("metrics are reported for every dimension", () => {
   const { metrics } = result;
 
   assert.equal(Number.isFinite(metrics.passRate), true);
+  assert.equal(metrics.overallConformance, metrics.passRate);
   assert.equal(Number.isFinite(metrics.qualityAccuracy), true);
   assert.equal(Number.isFinite(metrics.healthAccuracy), true);
   assert.equal(Number.isFinite(metrics.issueRecall), true);
@@ -107,8 +108,8 @@ test("evaluateCase penalizes unexpected issue types", () => {
 test("defect metrics report seeded detection recall and false positives", () => {
   const result = runEvaluation({ verbose: false, syntheticCount: 40 });
 
-  assert.equal(result.defect.defects, 40);
-  assert.equal(result.defect.detected, 40);
+  assert.ok(result.defect.defects < 40);
+  assert.equal(result.defect.detected, result.defect.defects);
   assert.equal(result.defect.detectionRecall, 1);
   assert.equal(result.defect.casesWithUnexpectedFindings, 0);
   assert.equal(result.defect.unexpectedFindings, 0);

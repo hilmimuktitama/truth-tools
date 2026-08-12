@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://truth-tools.dev/schemas/suite-lock.schema.json",
+  "title": "Truth Suite lock",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schema_version", "suite", "components"],
+  "properties": {
+    "$schema": { "const": "https://truth-tools.dev/schemas/suite-lock.schema.json" },
+    "schema_version": { "const": "1.0.0" },
+    "suite": { "const": "truth-suite" },
+    "components": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capture-truth", "timeline-truth", "program-truth"],
+      "patternProperties": {},
+      "properties": {
+        "capture-truth": { "$ref": "#/$defs/component" },
+        "timeline-truth": { "$ref": "#/$defs/component" },
+        "program-truth": { "$ref": "#/$defs/component" }
+      }
+    }
+  },
+  "$defs": {
+    "component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "ref", "version"],
+      "properties": {
+        "repository": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$" },
+        "ref": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$" },
+        "provisional": { "type": "boolean" }
+      }
+    }
+  }
+}

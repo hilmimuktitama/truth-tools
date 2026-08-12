@@ -114,7 +114,7 @@ export function doctorTruthTools() {
         subject: "release.scope",
         value: "phase-1",
         text: "Phase 1 is the current release scope.",
-        source_refs: [{ source_id: "status-note", locator: "https://example.com/notes/status" }]
+         source_refs: [{ source_id: "status-note", locator: "https://example.com/notes/status" }]
       }
     ]
   });

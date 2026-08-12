@@ -19,7 +19,8 @@ src/
   timeline-diff.js          deterministic timeline drift + drift Markdown
 packages/contracts/         canonical JSON Schema Draft 2020-12 contracts
   schemas/                  source, source-ref, candidate-claim, claim,
-                            timeline-item, status-artifact, truth-review
+                             timeline-item, status-artifact, truth-review,
+                             suite-lock
   index.js                  dependency-free schema loader
 scripts/
   contracts-verify.js       schema + engine conformance and parity checks
@@ -52,7 +53,7 @@ StatusArtifact (status-artifact.schema.json)
 truth.review (CLI and MCP use the same core)
   - normalize + strict-field checks (src/normalize.js)
   - deprecation normalizers: captured_at, sourceId, string refs
-  - freshness: observed_at vs as_of, source_updated_at
+  - freshness: observation age, content age, and snapshot gap
   - typed scalar contradictions
   - timeline drift (src/timeline-diff.js)
         |

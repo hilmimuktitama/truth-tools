@@ -425,6 +425,28 @@
       "expect": { "artifact_quality": "needs_review", "program_health": "on_track", "issues": ["source_updated_after_as_of"] }
     },
     {
+      "id": "source-updated-after-observation",
+      "description": "A source updated after observation but by the review cutoff has a review-level snapshot gap.",
+      "input": {
+        "sources": [
+          { "id": "s1", "type": "jira", "observed_at": "2026-08-10T00:00:00.000Z", "source_updated_at": "2026-08-10T12:00:00.500Z" },
+          { "id": "s2", "type": "note", "observed_at": "2026-08-09T00:00:00.000Z" }
+        ]
+      },
+      "expect": { "artifact_quality": "needs_review", "program_health": "on_track", "issues": ["source_updated_after_observation"] }
+    },
+    {
+      "id": "source-update-equality",
+      "description": "Equal observation and source update timestamps do not create a snapshot gap.",
+      "input": {
+        "sources": [
+          { "id": "s1", "type": "jira", "observed_at": "2026-08-10T00:00:00.000Z", "source_updated_at": "2026-08-10T00:00:00.000Z" },
+          { "id": "s2", "type": "note", "observed_at": "2026-08-09T00:00:00.000Z" }
+        ]
+      },
+      "expect": { "artifact_quality": "pass", "program_health": "on_track" }
+    },
+    {
       "id": "no-claims",
       "description": "An artifact without claims fails and has unknown program health.",
       "input": { "claims": [] },

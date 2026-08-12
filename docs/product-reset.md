@@ -1,6 +1,6 @@
-# Product reset — 0.3.0
+# Product reset — 0.3.1
 
-This document records what the 0.3.0 reset is, why it exists, and how the
+This document records the 0.3 reset and 0.3.1 hardening, and how the
 flagship product is scoped. It complements the review that drove the reset
 (`docs/product-review.md`).
 
@@ -16,7 +16,7 @@ publication. It is not a source connector and not an LLM judge.
 
 ## What changed
 
-| Dimension | 0.2.x (legacy umbrella) | 0.3.0 (this branch) |
+| Dimension | 0.2.x (legacy umbrella) | 0.3.1 current line |
 | --- | --- | --- |
 | MCP surface | Nine tools across capture/timeline/program/rendering | Two tools: `truth.review`, `truth.doctor` |
 | Review verdict | Single `readiness` value | `artifact_quality` (pass/needs_review/fail) and `program_health` (on_track/at_risk/blocked/unknown) |
@@ -28,7 +28,7 @@ publication. It is not a source connector and not an LLM judge.
 | Evaluation | None | Hand-written + seeded-synthetic cases with metrics |
 | Release | Manual | Tagged trusted publishing with provenance (ADR-0005) |
 
-## The core correction this branch makes
+## The core correction this release makes
 
 The original 0.3 plan missed one distinction that this convergence fixes:
 **artifact quality and program health are different axes.** A report with

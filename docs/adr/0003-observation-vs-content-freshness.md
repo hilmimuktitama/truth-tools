@@ -12,15 +12,18 @@ changed", so freshness checks could silently compare the wrong value.
 
 ## Decision
 
-Source records carry two distinct timestamps:
+Source records carry two timestamps and one derived interval:
 
 - **`observed_at`** (required) — when the evidence was observed or
   snapshotted. This is the value the stale-source policy ages against
   `as_of`.
 - **`source_updated_at`** (optional) — the last-modified time reported by the
-  source system. It is informational unless it is after `as_of`, which raises
-  a review-level `source_updated_after_as_of` finding: the snapshot may be
-  stale relative to the source.
+  source system. Content age is `as_of - source_updated_at` and is checked
+  independently of observation age.
+- **Snapshot gap** (derived) — `source_updated_at - observed_at` when
+  `observed_at < source_updated_at <= as_of`. It raises a review-level
+  `source_updated_after_observation` finding with source id and timestamps.
+  An update after `as_of` instead raises `source_updated_after_as_of`.
 
 `captured_at` is a deprecated compatibility form: it is normalized to
 `observed_at` and reported as a deprecation finding. Deprecations never change
@@ -28,7 +31,7 @@ quality.
 
 ## Consequences
 
-- Freshness has two visible dimensions in the demo: evidence age
-  (`as_of` − `observed_at`) and the gap between snapshot and source update.
-- A source that changed after the snapshot but before `as_of` is not an
-  issue; the snapshot is simply older than the source.
+- Freshness has three visible dimensions: observation age (`as_of` −
+  `observed_at`), content age (`as_of` − `source_updated_at`), and snapshot
+  gap (`source_updated_at` − `observed_at`). These dimensions are independent;
+  stale content and a snapshot gap may occur together.

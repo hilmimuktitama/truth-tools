@@ -33,18 +33,24 @@ jobs:
       TRUTH_SUITE_REQUIRE_SIBLINGS: "1"
     steps:
       - uses: actions/checkout@v4
+      - name: Resolve suite-lock refs
+        id: suite-lock
+        run: node scripts/suite-lock-verify.js --github-output >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         with:
           repository: hilmimuktitama/capture-truth
           path: components/capture-truth
+          ref: ${{ steps.suite-lock.outputs.capture_truth_ref }}
       - uses: actions/checkout@v4
         with:
           repository: hilmimuktitama/timeline-truth
           path: components/timeline-truth
+          ref: ${{ steps.suite-lock.outputs.timeline_truth_ref }}
       - uses: actions/checkout@v4
         with:
           repository: hilmimuktitama/program-truth
           path: components/program-truth
+          ref: ${{ steps.suite-lock.outputs.program_truth_ref }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22

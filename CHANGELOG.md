@@ -6,6 +6,15 @@ aims to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.3.1] — 2026-08-13
+
+### Added
+
+- Snapshot-gap review findings distinguish observation age, content age, and
+  the interval between an observation and an in-cutoff source update.
+- Exact-SHA Truth Suite locking and checkout verification for release gates.
+- Canonical `truth-tools example` output with a CLI JSON round-trip test.
+
 ### Changed
 
 - Documented the coordinated Truth Suite release plan and component-first
@@ -21,7 +30,7 @@ aims to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   required-sibling CI mode, and a clearly reported checked-in fixture fallback
   for single-repository installs.
 
-### Added (0.3.0, this branch)
+### Added (0.3.0 reset history)
 
 - **Strict semantic RFC3339 timestamps.** Canonical Source and SourceRef
   timestamp fields now declare `format: "date-time"` and reject impossible
@@ -68,7 +77,7 @@ aims to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   regenerates/verifies every output; `npm run demo:dev` serves a static,
   no-login, no-telemetry browser demo; `npm run demo:build` rebuilds
   `apps/demo/dist`.
-- **Evaluation harness.** `evaluation/cases.json` (28 hand-written cases) plus
+- **Evaluation harness.** `evaluation/cases.json` (30 hand-written cases) plus
   a seeded synthetic generator; `npm run eval` reports pass rate, per-dimension
   accuracy, and issue precision/recall. Synthetic cases are repeatable.
 - **Cross-component demo integration.** When the sibling repos

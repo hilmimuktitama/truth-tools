@@ -34,15 +34,17 @@ test("demo freshness separates observation and source-content ages without NaN",
   const review = {
     as_of: "2026-08-11T00:00:00.000Z",
     policy: { max_observation_age_days: 7, max_source_content_age_days: 3 },
-    sources: [{ id: "s1", type: "note", observed_at: "2026-08-10T00:00:00.000Z", source_updated_at: "2026-08-01T00:00:00.000Z" },
+    sources: [{ id: "s1", type: "note", observed_at: "2026-08-10T00:00:00.000Z", source_updated_at: "2026-08-10T12:00:00.500Z" },
       { id: "s2", type: "note", observed_at: "2026-08-10T00:00:00.000Z" }]
   };
   const rows = freshnessRows(review);
   assert.equal(rows[0].obsAgeDays, 1);
   assert.equal(rows[0].obsMax, 7);
-  assert.equal(rows[0].contentAgeDays, 10);
+  assert.equal(rows[0].contentAgeDays, 0.5);
   assert.equal(rows[0].contentMax, 3);
   assert.equal(rows[1].contentAgeDays, null);
+  assert.equal(rows[0].snapshotGapDays, 0.5);
+  assert.equal(rows[1].snapshotGapDays, null);
   assert.equal(rows.flatMap((row) => [row.obsAgeDays, row.obsMax, row.contentAgeDays, row.contentMax]).some((value) => Number.isNaN(value)), false);
 });
 
@@ -131,6 +133,11 @@ test("release workflow uses a published release and validates the exact tag", ()
   assert.equal(contents.includes("push:\n    tags:"), false);
   assert.equal(contents.includes("NODE_AUTH_TOKEN"), false);
   assert.equal(contents.includes("NPM_TOKEN"), false);
+  assert.equal(contents.includes("ref: 0db8cc1"), false);
+  assert.match(contents, /steps\.suite-lock\.outputs\.capture_truth_ref/);
+  assert.match(contents, /steps\.suite-lock\.outputs\.timeline_truth_ref/);
+  assert.match(contents, /steps\.suite-lock\.outputs\.program_truth_ref/);
+  assert.match(contents, /--github-output --release/);
 });
 
 test("dist files match the demo sources byte for byte", () => {
@@ -142,7 +149,12 @@ test("dist files match the demo sources byte for byte", () => {
 });
 
 test("sibling components wire in real cross-repo calls", async () => {
-  const { capture, timelineMod, diffMod } = await loadSiblings();
+  const siblings = await loadSiblings();
+  if (siblings.mode !== "live") {
+    assert.equal(siblings.sibling.capture.kind, "capture_truth_evidence_pack");
+    return;
+  }
+  const { capture, timelineMod, diffMod } = siblings;
   const fixed = readJson("../examples/launch-readiness/evidence-pack.json");
   const baseline = readJson("../examples/launch-readiness/baseline-plan.json");
   const current = readJson("../examples/launch-readiness/current-plan.json");
