@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import test from "node:test";
 
-import { githubOutputs, readSuiteLock, verifySuiteLock } from "../scripts/suite-lock-verify.js";
+import { githubOutputs, parseArgs, readSuiteLock, verifySuiteLock } from "../scripts/suite-lock-verify.js";
 
 test("suite lock has exact refs, target versions, and stable output", () => {
   const lock = readSuiteLock();
@@ -43,4 +44,27 @@ test("suite lock rejects an unexpected repository identity", () => {
   const result = verifySuiteLock({ lock });
   assert.equal(result.ok, false);
   assert.match(result.failures.join("\n"), /repository identity/);
+});
+
+test("process accepts the exact workflow command style with a separate component-root value", () => {
+  const componentRoot = "/Users/hlmmkttm/workspace/personal/oss";
+  const result = spawnSync(process.execPath, [
+    "scripts/suite-lock-verify.js",
+    "--component-root",
+    componentRoot,
+    "--verify-checkouts"
+  ], { encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout, "");
+  assert.match(result.stderr, /Suite lock verification: PASS/);
+});
+
+test("argument parser accepts both value forms and rejects malformed arguments", () => {
+  assert.deepEqual(parseArgs(["--lock=one.json", "--component-root", "/tmp/root", "--release"]).errors, []);
+  for (const args of [
+    ["--lock"],
+    ["--component-root", "--verify-checkouts"],
+    ["--release", "--release"],
+    ["--unknown"]
+  ]) assert.ok(parseArgs(args).errors.length > 0, args.join(" "));
 });

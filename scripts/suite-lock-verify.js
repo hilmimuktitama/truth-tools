@@ -50,14 +50,47 @@ export function githubOutputs(lock = readSuiteLock()) {
   return COMPONENTS.map((name) => `${name.replaceAll("-", "_")}_ref=${lock.components[name].ref}`).join("\n");
 }
 
+const VALUE_FLAGS = new Set(["--lock", "--component-root"]);
+const BOOLEAN_FLAGS = new Set(["--github-output", "--verify-checkouts", "--release"]);
+
+export function parseArgs(args) {
+  const options = { flags: new Set() };
+  const errors = [];
+  for (let index = 0; index < args.length; index += 1) {
+    const argument = args[index];
+    const equals = argument.indexOf("=");
+    const name = equals === -1 ? argument : argument.slice(0, equals);
+    const inlineValue = equals === -1 ? undefined : argument.slice(equals + 1);
+    if (BOOLEAN_FLAGS.has(name)) {
+      if (inlineValue !== undefined) errors.push(`${name} does not accept a value`);
+      else if (options.flags.has(name)) errors.push(`duplicate argument ${name}`);
+      else options.flags.add(name);
+      continue;
+    }
+    if (VALUE_FLAGS.has(name)) {
+      if (options[name.slice(2)]) errors.push(`duplicate argument ${name}`);
+      const value = inlineValue ?? args[++index];
+      if (!value || value.startsWith("--")) errors.push(`missing value for ${name}`);
+      else options[name.slice(2)] = value;
+      continue;
+    }
+    errors.push(`unknown argument ${argument}`);
+  }
+  return { options, errors };
+}
+
 if (process.argv[1] === new URL(import.meta.url).pathname) {
-  const args = process.argv.slice(2);
-  const lockArg = args.find((arg) => arg.startsWith("--lock="));
-  const rootArg = args.find((arg) => arg.startsWith("--component-root="));
   try {
-    const lock = readSuiteLock(lockArg ? resolve(lockArg.slice(7)) : undefined);
-    const result = verifySuiteLock({ lock, componentRoot: rootArg?.slice(17), verifyCheckouts: args.includes("--verify-checkouts"), requireCommitted: args.includes("--release") });
-    if (args.includes("--github-output")) {
+    const { options, errors } = parseArgs(process.argv.slice(2));
+    if (errors.length > 0) throw new Error(errors.join("; "));
+    const lock = readSuiteLock(options.lock ? resolve(options.lock) : undefined);
+    const result = verifySuiteLock({
+      lock,
+      componentRoot: options["component-root"],
+      verifyCheckouts: options.flags.has("--verify-checkouts"),
+      requireCommitted: options.flags.has("--release")
+    });
+    if (options.flags.has("--github-output")) {
       if (!result.ok) process.stderr.write(`Suite lock verification: FAIL\n${result.failures.map((failure) => `  FAIL  ${failure}`).join("\n")}\n`);
       else process.stdout.write(`${githubOutputs(lock)}\n`);
     } else {
