@@ -2,8 +2,8 @@
 
 [![CI](https://github.com/hilmimuktitama/truth-tools/actions/workflows/ci.yml/badge.svg)](https://github.com/hilmimuktitama/truth-tools/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-> **Source status:** This checkout is the prepared current `0.3.1` patch source;
-> it is not published until the exact version tag and release gates pass.
+> **Release status:** `0.3.1` is published from the exact version tag through
+> the trusted release workflow. See GitHub Releases and npm for the latest release.
 
 Truth Tools is a **deterministic evidence gate** for project-status
 artifacts. It checks the structure of a supplied status report — every claim

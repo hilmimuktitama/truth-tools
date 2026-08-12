@@ -1,7 +1,7 @@
-# Truth Suite release plan
+# Truth Suite 0.3.1 release history
 
-This is the current prepared `0.3.1` patch source and release history. It is
-not published until the exact release tag and trusted workflow gates pass.
+The coordinated patch set was published on 2026-08-13 from exact version tags
+after the trusted workflow gates passed.
 
 ## Release set and ownership
 
@@ -17,25 +17,23 @@ capture output; it is not a truth linter. Each component owner owns its changelo
 published-package verification. The suite maintainer coordinates shared
 fixtures, order, and final verification.
 
-## Order and preconditions
+## Release order and controls
 
-Release components first, then the flagship `truth-tools` package. Flagship CI
+Components were released first, followed by the flagship `truth-tools` package. Flagship CI
 and release workflows read `suite-lock.json` and check out exact component
-SHAs. The checked-in refs identify the reviewed component patch commits; before
-release, verify those same commits are merged and released without modification.
+SHAs. The checked-in refs identify the released component commits.
 
-Before tagging or publishing, confirm all versions and changelogs, compatible
+The release gates confirmed all versions and changelogs, compatible
 APIs and fixtures on the locked component commits, focused component checks and
 pack dry-runs, and trusted npm publishing through GitHub Actions OIDC
 (`id-token: write`, with no stored registry token).
 
 ## Flagship flow
 
-Merge the verified `truth-tools` release commit to `main`, wait for CI, tag that
-exact commit as `v0.3.1`, and create the GitHub Release from that tag. Publishing
-the release starts the `release.published` workflow, which checks the tag and
-package version, runs the full gates and pack dry-runs, and publishes with npm
-provenance. Verify the published package and provenance afterward.
+The verified Truth Tools release commit was merged to `main`, passed CI, and was
+tagged `v0.3.1`. Publishing the GitHub Release started the `release.published`
+workflow, which checked the tag and package version, ran the full gates and pack
+dry-runs, and published with npm provenance.
 
 ## Stop conditions and verification
 
@@ -48,4 +46,5 @@ restart its gates.
 Final flagship verification is `npm test`, `npm run check`,
 `npm run contracts:verify`, `npm run demo`, `npm run demo:build`, both eval
 commands, doctor, and root/contracts `npm pack --dry-run`, followed by
-published-package and provenance checks. This plan does not itself publish.
+published-package and provenance checks. This history is not an executable
+release mechanism; the workflows remain authoritative.
