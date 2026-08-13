@@ -25,7 +25,7 @@ now records the corrected 0.4.1 target set; no historical tag was moved.
 | `capture-truth` | `0.5.1` | Capture maintainer |
 | `timeline-truth` | `0.4.0` | Timeline maintainer |
 | `program-truth` | `0.3.1` | Program maintainer |
-| `truth-tools` | `0.4.1` release candidate | Suite/release maintainer |
+| `truth-tools` | `0.4.1` | Suite/release maintainer |
 
 The release verifier enforces the three component release versions in
 `--release` mode.
@@ -51,9 +51,9 @@ CI, and was tagged `v0.4.0`. Publishing the GitHub Release started the
 `release.published` workflow, which checked the tag and package version, ran the
 full gates and pack dry-runs, and published with npm provenance.
 
-The component releases are complete. The remaining flow is to verify the exact
-suite lock, merge and tag the flagship, then publish from that exact tag. Until
-those Truth Tools steps complete, the flagship remains unpublished.
+The component and flagship releases are complete. Truth Tools `0.4.1` was
+published from immutable tag `v0.4.1` with npm provenance after exact live
+sibling verification. No existing tag was moved.
 
 ## Stop conditions and verification
 
