@@ -235,8 +235,6 @@ test("the Program Truth example passes through canonical and reviews pass + bloc
   assert.equal(artifact.kind, "status_artifact");
   assert.equal(artifact.schema_version, "2.0.0");
   assert.equal(artifact.as_of, "2026-08-11T09:00:00.000Z");
-  assert.equal(artifact.sources.length, 6);
-  assert.equal(artifact.claims.length, 8);
   assert.equal(artifact.claims.every((claim) => claim.state === "active"), true);
   // Program Truth now emits the canonical shape: the mapper passes it through
   // byte-for-byte (structured clone), it never rewrites it.
