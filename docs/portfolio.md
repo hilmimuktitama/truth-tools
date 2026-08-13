@@ -10,7 +10,10 @@ independent verdicts: **artifact quality** (pass/needs_review/fail) and
  JSON Schema contracts, a static demo, and a repeatable evaluation harness all
  use the same core.
 
-Truth Tools is an evidence-first technical-program reliability toolkit combining provenance-preserving evidence intake, defensible timeline compilation, agent-guided status synthesis, and deterministic pre-publication review.
+Truth Tools is the deterministic review boundary in an evidence-first
+technical-program reliability toolkit. Sibling components provide any intake,
+timeline compilation, or status synthesis; this package reviews their
+metadata-only outputs.
 
 That sentence frames the wider Truth Suite: sibling/operator components provide
 evidence intake, timeline compilation, and agent-guided synthesis; Truth Tools
@@ -109,9 +112,10 @@ truth-tools review --input status.json --fail-on-health blocked        # health 
 
 - **One contract across CLI and MCP.** An agent makes one review call, not
   nine choreographed steps.
-- **Two verdicts, exact policies (ADR-0002).** Quality fails on blocking
-  issues or contradictions; health comes from claim kinds. Exit codes depend
-  only on quality unless `--fail-on-health` is passed.
+- **Two verdicts, exact policies (ADRs-0002 and 0007).** Quality fails on
+  blocking issues or contradictions; health resolves explicit reported health
+  with the active-claim floor. Exit codes depend only on quality unless
+  `--fail-on-health` is passed.
 - **Reproducible time boundary.** `as_of` is required; ambiguous or
   timezone-free dates are rejected.
 - **Freshness split (ADR-0003).** Observation age, content age, and snapshot gap;

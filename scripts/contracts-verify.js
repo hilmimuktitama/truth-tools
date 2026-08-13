@@ -115,7 +115,7 @@ function runChecks(check) {
     classification_method: "keyword",
     review_status: "unreviewed",
     source_refs: [{ source_id: "cap-1", locator: "https://example.com/cap-1" }],
-    derivation_version: "0.5.0",
+    derivation_version: "0.5.1",
     source_material: "metadata"
   });
   check("conformance:candidate-claim-final-schema", candidateClaim.valid, firstErrors(candidateClaim.errors));
@@ -128,7 +128,7 @@ function runChecks(check) {
       reviewed_by: "Ada",
       reviewed_at: "2026-08-13T12:00:00Z",
       source_refs: [{ source_id: "cap-1", locator: "https://example.com/cap-1" }],
-      derivation_version: "0.5.0",
+      derivation_version: "0.5.1",
       source_material: "metadata"
     });
     check(`conformance:candidate-claim-${review_status}`, reviewedCandidate.valid, firstErrors(reviewedCandidate.errors));

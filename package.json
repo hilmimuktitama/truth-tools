@@ -1,7 +1,7 @@
 {
   "name": "truth-tools",
   "version": "0.4.0",
-  "description": "Deterministic review and orchestration toolkit for metadata-only technical-program status artifacts.",
+  "description": "Deterministic evidence and health-consistency review gate for technical-program status artifacts.",
   "license": "MIT",
   "type": "module",
   "bin": {
@@ -34,7 +34,8 @@
     "test": "node --test test/*.test.js",
     "check": "node --check bin/truth-tools.js && node --check src/cli.js && node --check src/contracts.js && node --check src/mcp-server.js && node --check src/mcp-tools.js && node --check src/normalize.js && node --check src/report.js && node --check src/review.js && node --check src/timeline-diff.js && node --check scripts/contracts-verify.js && node --check scripts/suite-lock-verify.js && node --check scripts/demo.js && node --check scripts/demo-build.js && node --check scripts/demo-dev.js && node --check scripts/eval.js && node --check evaluation/real-world/run-private-evaluation.js && node --check packages/contracts/index.js && node --check apps/demo/app.js && node --check apps/demo/data.js",
     "contracts:verify": "node scripts/contracts-verify.js",
-    "demo": "node scripts/demo.js --write",
+    "demo": "node scripts/demo.js",
+    "demo:write": "node scripts/demo.js --write",
     "demo:build": "node scripts/demo-build.js",
     "demo:dev": "node scripts/demo-dev.js",
     "eval": "node scripts/eval.js",

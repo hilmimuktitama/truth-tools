@@ -39,7 +39,7 @@ jobs:
           node-version: 22
       - run: npm ci
       - name: Verify suite lock and checkout exact refs
-        run: node scripts/suite-lock-verify.js --component-root "$TRUTH_SUITE_COMPONENT_ROOT" --verify-checkouts
+        run: node scripts/suite-lock-verify.js --component-root "$TRUTH_SUITE_COMPONENT_ROOT" --verify-checkouts --verify-contracts
       - run: npm audit --audit-level=high
       - run: npm test
       - run: npm run check
