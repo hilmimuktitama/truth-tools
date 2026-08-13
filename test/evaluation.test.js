@@ -232,7 +232,10 @@ test("npm pack excludes private evaluation paths while shipping public evaluatio
   });
 
   assert.equal(run.status, 0, run.stderr);
-  const packedFiles = JSON.parse(run.stdout)[0].files.map(({ path }) => path);
+  const packOutput = JSON.parse(run.stdout);
+  const packageRecord = Array.isArray(packOutput) ? packOutput[0] : Object.values(packOutput)[0];
+  assert.ok(packageRecord, "npm pack should return a package record");
+  const packedFiles = packageRecord.files.map(({ path }) => path);
   const publicEvaluationFiles = [
     "evaluation/README.md",
     "evaluation/cases.json",
