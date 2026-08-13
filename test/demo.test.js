@@ -232,7 +232,7 @@ test("release workflow uses a published release and validates the exact tag", ()
 });
 
 test("workflow YAML command steps have valid indentation and CI is verify-only", () => {
-  for (const workflow of ["ci.yml", "release.yml"]) {
+  for (const workflow of ["ci.yml", "release.yml", "pages.yml"]) {
     const contents = readFileSync(new URL(`../.github/workflows/${workflow}`, import.meta.url), "utf8");
     assert.equal(contents.includes("npm run demo:write"), false, `${workflow} must not write demo fixtures`);
     assert.match(contents, /^name: \S+/m);
@@ -240,6 +240,16 @@ test("workflow YAML command steps have valid indentation and CI is verify-only",
     const malformedSteps = contents.split("\n").filter((line) => /^(\s+)- (?:run|name|uses):/.test(line) && line.match(/^\s*/)[0].length !== 6);
     assert.deepEqual(malformedSteps, [], `${workflow} has malformed step indentation`);
   }
+});
+
+test("Pages installs runtime dependencies before resolving the suite lock", () => {
+  const contents = readFileSync(new URL("../.github/workflows/pages.yml", import.meta.url), "utf8");
+  const orderedSteps = ["- uses: actions/setup-node@v4", "- run: npm ci", "- name: Resolve suite-lock refs"].map((step) => {
+    const index = contents.indexOf(step);
+    assert.notEqual(index, -1, `Pages workflow is missing ${step}`);
+    return index;
+  });
+  assert.deepEqual(orderedSteps, orderedSteps.slice().sort((left, right) => left - right));
 });
 
 test("dist files match the demo sources byte for byte", () => {
