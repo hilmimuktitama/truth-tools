@@ -1,7 +1,7 @@
 // Public-safe demo data: raw source bodies are stripped by scripts/demo.js
 // and asserted absent before this file is written or deployed to Pages.
 export const TRUTH_DEMO = {
-  "version": "0.4.0",
+  "version": "0.4.1",
   "publicSafe": true,
   "broken": {
     "kind": "status_artifact",
@@ -1610,7 +1610,7 @@ export const TRUTH_DEMO = {
   "sibling": {
     "capture": {
       "kind": "capture_truth_evidence_pack",
-      "schema_version": "0.5.0",
+      "schema_version": "0.5.1",
       "generated_at": "2026-08-11T00:00:00.000Z",
       "sources": [
         {

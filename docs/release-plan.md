@@ -3,8 +3,7 @@
 The published `0.4.0` coordinated patch set is historical: it came from the
 old-generation exact lock. The final coordinated component target is
 `capture-truth@0.5.1`, `timeline-truth@0.4.0`, and `program-truth@0.3.1`.
-Those target component releases are not represented by the staged historical
-lock until their exact committed refs are available.
+Those component releases are represented below by their exact committed refs.
 
 ## Historical release set and ownership
 
@@ -15,20 +14,21 @@ lock until their exact committed refs are available.
 | `program-truth` | `0.2.1` | Program maintainer |
 | `truth-tools` | `0.4.0` (published old-generation lock) | Suite/release maintainer |
 
-This is the historical set recorded by `suite-lock.json`; the lock remains
-unchanged and must not be rewritten as part of planning.
+This historical set remains recorded at tag `v0.4.0` and commit
+`e558a5b607e8be220f2dba44d27829c1d8183277`. The current `suite-lock.json`
+now records the corrected 0.4.1 target set; no historical tag was moved.
 
-## Planned final target set
+## Final component release set
 
 | Component | Target version | Owner |
 | --- | --- | --- |
 | `capture-truth` | `0.5.1` | Capture maintainer |
 | `timeline-truth` | `0.4.0` | Timeline maintainer |
 | `program-truth` | `0.3.1` | Program maintainer |
-| `truth-tools` | `0.4.0` workflow target | Suite/release maintainer |
+| `truth-tools` | `0.4.1` release candidate | Suite/release maintainer |
 
-The release verifier enforces the three component target versions in
-`--release` mode. A historical lock therefore fails release mode by design.
+The release verifier enforces the three component release versions in
+`--release` mode.
 
 ## Release order and controls
 
@@ -51,10 +51,9 @@ CI, and was tagged `v0.4.0`. Publishing the GitHub Release started the
 `release.published` workflow, which checked the tag and package version, ran the
 full gates and pack dry-runs, and published with npm provenance.
 
-The planned flow is to complete and verify the final target component set,
-update the exact suite lock in its release change, merge and tag the flagship,
-then publish from that exact tag. Until those steps complete, the target set
-remains planned rather than published.
+The component releases are complete. The remaining flow is to verify the exact
+suite lock, merge and tag the flagship, then publish from that exact tag. Until
+those Truth Tools steps complete, the flagship remains unpublished.
 
 ## Stop conditions and verification
 
@@ -70,7 +69,7 @@ commands, doctor, and root/contracts `npm pack --dry-run`, followed by
 published-package and provenance checks. This history is not an executable
 release mechanism; the workflows remain authoritative.
 
-- **Planned post-release requirement:** once the final target release is
+- **Post-release requirement:** once the final target release is
   published, consumers must use its exact package/tag and matching complete
   lock; never resume with the historical 0.4.0 old-generation lock or a
   floating sibling reference.

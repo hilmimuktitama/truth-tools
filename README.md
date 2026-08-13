@@ -2,10 +2,10 @@
 
 [![CI](https://github.com/hilmimuktitama/truth-tools/actions/workflows/ci.yml/badge.svg)](https://github.com/hilmimuktitama/truth-tools/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-> **Release status:** `0.4.0` is the published release from the old-generation
-> exact lock. The corrected, complete v2 release is planned as `0.4.1` and is
-> **not published yet**; do not describe it as available until its exact lock,
-> tag, CI gates, and trusted publication are complete.
+> **Release status:** Truth Suite components are locked to their exact released
+> commits for Truth Tools `0.4.1`. Truth Tools `0.4.1` itself is not published
+> yet; do not describe the package as available until its tag, CI gates, and
+> trusted publication are complete.
 
 Truth Tools is a **deterministic evidence gate** for project-status
 artifacts. It checks the structure of a supplied status report — every claim
@@ -85,10 +85,10 @@ See the [portfolio case study](docs/portfolio.md), the
 [product reset](docs/product-reset.md), and the
 [review that drove it](docs/product-review.md).
 
-The package command is:
+After the 0.4.1 release workflow completes, the package command is:
 
 ```bash
- npm exec --yes --package truth-tools@0.4.0 -- \
+ npm exec --yes --package truth-tools@0.4.1 -- \
   truth-tools review --input status.json
 ```
 
@@ -99,11 +99,11 @@ stop conditions, and verification gates are in the
 [Truth Suite release plan](docs/release-plan.md). The operational workflow is
 in [docs/release-process.md](docs/release-process.md).
 
-The published `0.4.0` release followed the old-generation lock. The planned
-corrected release is `0.4.1`; it is not published and must not be presented as
-available. When that release is actually cut, maintainers must merge the
-release commit to `main`, wait for CI, tag that exact main commit (`v0.4.1`),
-and create a GitHub Release from the tag. Publishing the release starts the
+The published `0.4.0` release followed the old-generation lock. The current
+`0.4.1` release candidate uses the exact component lock finalized above; it is
+not published yet and must not be presented as available. Maintainers must
+merge the release commit to `main`, wait for CI, tag that exact main commit
+(`v0.4.1`), and create a GitHub Release from the tag. Publishing the release starts the
 trusted `release.published` workflow, which checks out the tag, verifies the
 current complete v2 suite against its exact lock, runs the full gates, publishes
 only the root package with npm provenance, and then the maintainer verifies the
@@ -209,7 +209,7 @@ just because it does not contain the word "risk" or "blocked".
 
 ### Capture Truth CandidateClaim
 
-The shared CandidateClaim contract follows Capture Truth 0.5.0. A CandidateClaim
+The shared CandidateClaim contract follows Capture Truth 0.5.1. A CandidateClaim
 is an extraction-stage candidate, not a reviewed Claim and not a final program
 status. It carries enumerable extraction metadata
 (`classification_method`, `derivation_version`, and `source_material`) plus a
@@ -285,14 +285,14 @@ From a source checkout, configure the stdio server directly:
 }
 ```
 
-Use the package binary:
+After 0.4.1 is published, use the package binary:
 
 ```json
 {
   "mcpServers": {
     "truth-tools": {
       "command": "npx",
-      "args": ["-y", "--package=truth-tools@0.4.0", "truth-tools-mcp"]
+      "args": ["-y", "--package=truth-tools@0.4.1", "truth-tools-mcp"]
     }
   }
 }

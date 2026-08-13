@@ -14,15 +14,15 @@ is `.github/workflows/release.yml`.
 - The historical component set is `capture-truth@0.4.1`,
   `timeline-truth@0.3.1`, and `program-truth@0.2.1`; it is preserved in the
   staged lock and is not the final target set.
-- The planned final component target set is `capture-truth@0.5.1`,
-  `timeline-truth@0.4.0`, and `program-truth@0.3.1`; it must not be presented as
-  available before its exact-lock gates complete.
+- The finalized component release set is `capture-truth@0.5.1`,
+  `timeline-truth@0.4.0`, and `program-truth@0.3.1`; these are locked to their
+  exact release commits.
 - The review contract carries its own `schema_version: "2.0.0"` inside
   `TruthReview`; it is independent of the npm version and only bumps when the
   canonical schemas change incompatibly.
 - The historical coordinated release set is `capture-truth@0.4.1`,
   `timeline-truth@0.3.1`, `program-truth@0.2.1`, and
-  `truth-tools@0.4.0`. The final component target set is
+  `truth-tools@0.4.0`. The finalized component release set is
   `capture-truth@0.5.1`, `timeline-truth@0.4.0`, and `program-truth@0.3.1`;
   see the
   [suite release plan](release-plan.md).

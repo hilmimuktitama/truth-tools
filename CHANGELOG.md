@@ -8,9 +8,16 @@ aims to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Finalized the Truth Suite lock at `capture-truth@0.5.1` (commit
+  `c6ec36229d545b1ccb82fe9276971f0d36354d0b`), `timeline-truth@0.4.0`
+  (commit `df8dde4fbb25b9347f1a08aab00e5850a74a7e3d`), and
+  `program-truth@0.3.1` (commit `526c434b0379257748a2dd7ed24b76b72036ceca`).
+- Bumped the package and private contracts workspace to `0.4.1`. Truth Tools
+  `0.4.1` is prepared but not published yet.
+
 - Corrected the release documentation to distinguish the published 0.4.0
-  old-generation exact lock from the planned, not-yet-published 0.4.1 current
-  complete v2 set; added the post-corrected-release exact-lock requirement.
+  old-generation exact lock from the finalized 0.4.1 current complete v2 set;
+  added the post-corrected-release exact-lock requirement.
 - Clarified that Truth Tools reviews and orchestrates metadata-only outputs; it
   does not own source intake, timeline compilation, program synthesis, or
   multi-step suite choreography.
@@ -31,7 +38,7 @@ aims to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Public-safe facts-only and blocked demo scenarios plus local-only private-evaluation guidance.
 
 This is the historical published release. The corrected complete v2 set is
-planned for 0.4.1 and is not represented as published here.
+represented by the later 0.4.1 release candidate, which is not published here.
 
 ## [0.3.1] — 2026-08-13
 

@@ -352,14 +352,16 @@ test("optional sibling mode uses the checked-in projection without mutating demo
 });
 
 test("required mode uses the live sibling checkouts and preserves Program Truth v2", async (context) => {
-  const liveCheck = verifySuiteLock({ componentRoot: OSS_ROOT, verifyCheckouts: true, verifyContracts: true });
-  if (!liveCheck.ok) return context.skip(`current sibling checkouts are not suite-lock exact: ${liveCheck.failures.join("; ")}`);
-  const root = temporaryRoot();
-  linkCurrentSiblings(root);
-  await withSiblingEnvironment(root, async () => {
+  const componentRoot = process.env.TRUTH_SUITE_COMPONENT_ROOT ?? OSS_ROOT;
+  const liveCheck = verifySuiteLock({ componentRoot, verifyCheckouts: true, verifyContracts: true });
+  if (!liveCheck.ok) {
+    if (process.env.TRUTH_SUITE_COMPONENT_ROOT) assert.fail(`configured sibling checkouts are not suite-lock exact: ${liveCheck.failures.join("; ")}`);
+    return context.skip(`current sibling checkouts are not suite-lock exact: ${liveCheck.failures.join("; ")}`);
+  }
+  await withSiblingEnvironment(componentRoot, async () => {
     const siblings = await loadSiblings();
     assert.equal(siblings.mode, "live");
-    assert.deepEqual(siblings.program, readJson("../../program-truth/examples/status-artifact.json"));
+    assert.deepEqual(siblings.program, JSON.parse(readFileSync(path.join(componentRoot, "program-truth", "examples", "status-artifact.json"), "utf8")));
     const sections = await siblingSections();
     assert.deepEqual(sections.program.artifact, siblings.program);
     assert.equal(sections.program.review.program_health, "blocked");
@@ -389,7 +391,7 @@ test("required mode reports package versions that do not match suite-lock", asyn
   writeFileSync(path.join(root, "timeline-truth", "package.json"), JSON.stringify({ version: "9.9.9" }));
   await withSiblingEnvironment(root, () => assert.rejects(
     () => loadSiblings(),
-    /timeline-truth: package version 9\.9\.9 does not match suite-lock 0\.3\.1/
+    /timeline-truth: package version 9\.9\.9 does not match suite-lock 0\.4\.0/
   ), { required: true });
 });
 

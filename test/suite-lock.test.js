@@ -2,15 +2,15 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
 
-import { CONTRACT_FLOORS, RELEASE_TARGET_VERSIONS, githubOutputs, parseArgs, readSuiteLock, verifySiblingContracts, verifySuiteLock } from "../scripts/suite-lock-verify.js";
+import { CONTRACT_FLOORS, RELEASE_TARGET_REFS, RELEASE_TARGET_VERSIONS, githubOutputs, parseArgs, readSuiteLock, verifySiblingContracts, verifySuiteLock } from "../scripts/suite-lock-verify.js";
 
-test("suite lock preserves historical released facts and stable output", () => {
+test("suite lock records the finalized component releases and stable output", () => {
   const lock = readSuiteLock();
   const result = verifySuiteLock({ lock });
   assert.equal(result.ok, true, result.failures.join(", "));
-  assert.equal(lock.components["capture-truth"].version, "0.4.1");
-  assert.equal(lock.components["timeline-truth"].version, "0.3.1");
-  assert.equal(lock.components["program-truth"].version, "0.2.1");
+  assert.equal(lock.components["capture-truth"].version, "0.5.1");
+  assert.equal(lock.components["timeline-truth"].version, "0.4.0");
+  assert.equal(lock.components["program-truth"].version, "0.3.1");
   assert.match(githubOutputs(lock), /capture_truth_ref=[0-9a-f]{40}/);
 });
 
@@ -46,26 +46,23 @@ test("suite lock rejects an unexpected repository identity", () => {
   assert.match(result.failures.join("\n"), /repository identity/);
 });
 
-test("target versions are checked without making provisional refs releaseable", () => {
+test("finalized target versions are checked without making provisional refs releaseable", () => {
   const lock = readSuiteLock();
-  assert.equal(lock.components["timeline-truth"].ref, "2b08ea75c930b02112a12f17a4de152898d7b5a7");
-  assert.equal(verifySuiteLock({ lock, targetVersions: RELEASE_TARGET_VERSIONS }).ok, false);
+  assert.equal(lock.components["timeline-truth"].ref, "df8dde4fbb25b9347f1a08aab00e5850a74a7e3d");
+  assert.equal(verifySuiteLock({ lock, targetVersions: RELEASE_TARGET_VERSIONS }).ok, true);
   const staged = structuredClone(lock);
   staged.components["capture-truth"].version = "0.5.1";
   staged.components["program-truth"].version = "0.3.1";
   staged.components["capture-truth"].provisional = true;
   staged.components["program-truth"].provisional = true;
-  assert.equal(verifySuiteLock({ lock: staged, targetVersions: RELEASE_TARGET_VERSIONS }).ok, false);
+  assert.equal(verifySuiteLock({ lock: staged, targetVersions: RELEASE_TARGET_VERSIONS, requireCommitted: true }).ok, false);
   assert.ok(CONTRACT_FLOORS["capture-truth"]);
 });
 
-test("release mode enforces the exact coordinated target versions", () => {
+test("release mode accepts the exact coordinated target versions", () => {
   const lock = structuredClone(readSuiteLock());
   const result = verifySuiteLock({ lock, targetVersions: RELEASE_TARGET_VERSIONS, requireCommitted: true });
-  assert.equal(result.ok, false);
-  assert.match(result.failures.join("\n"), /capture-truth.*target 0\.5\.1/);
-  assert.match(result.failures.join("\n"), /timeline-truth.*target 0\.4\.0/);
-  assert.match(result.failures.join("\n"), /program-truth.*target 0\.3\.1/);
+  assert.equal(result.ok, true, result.failures.join("\n"));
 });
 
 test("release CLI wires exact target enforcement and keeps stdout safe", () => {
@@ -74,11 +71,11 @@ test("release CLI wires exact target enforcement and keeps stdout safe", () => {
     "--release",
     "--github-output"
   ], { encoding: "utf8" });
-  assert.equal(result.status, 1);
-  assert.equal(result.stdout, "");
-  assert.match(result.stderr, /capture-truth.*target 0\.5\.1/);
-  assert.match(result.stderr, /timeline-truth.*target 0\.4\.0/);
-  assert.match(result.stderr, /program-truth.*target 0\.3\.1/);
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /capture_truth_ref=c6ec36229d545b1ccb82fe9276971f0d36354d0b/);
+  assert.match(result.stdout, /timeline_truth_ref=df8dde4fbb25b9347f1a08aab00e5850a74a7e3d/);
+  assert.match(result.stdout, /program_truth_ref=526c434b0379257748a2dd7ed24b76b72036ceca/);
+  assert.equal(result.stderr, "");
 });
 
 test("contract floor fails an old contract that only forges package metadata", () => {
@@ -95,10 +92,10 @@ test("contract verifier enforces Capture, Timeline, and Program public contract 
 
 test("final-lock fixture checks exact current target refs in memory", () => {
   const lock = structuredClone(readSuiteLock());
-  lock.components["capture-truth"] = { repository: "hilmimuktitama/capture-truth", ref: "a".repeat(40), version: "0.5.1" };
-  lock.components["timeline-truth"] = { repository: "hilmimuktitama/timeline-truth", ref: "b".repeat(40), version: "0.4.0" };
-  lock.components["program-truth"] = { repository: "hilmimuktitama/program-truth", ref: "c".repeat(40), version: "0.3.1" };
-  assert.equal(verifySuiteLock({ lock, targetVersions: RELEASE_TARGET_VERSIONS }).ok, true);
+  assert.equal(verifySuiteLock({ lock, targetVersions: RELEASE_TARGET_VERSIONS, targetRefs: RELEASE_TARGET_REFS }).ok, true);
+  const wrongSha = structuredClone(lock);
+  wrongSha.components["capture-truth"].ref = "a".repeat(40);
+  assert.equal(verifySuiteLock({ lock: wrongSha, targetVersions: RELEASE_TARGET_VERSIONS, targetRefs: RELEASE_TARGET_REFS }).ok, false);
   for (const mutate of [
     (entry) => { entry.version = "9.9.9"; },
     (entry) => { entry.ref = "wrong"; },
@@ -107,7 +104,7 @@ test("final-lock fixture checks exact current target refs in memory", () => {
   ]) {
     const invalid = structuredClone(lock);
     mutate(invalid.components["capture-truth"]);
-    assert.equal(verifySuiteLock({ lock: invalid, targetVersions: RELEASE_TARGET_VERSIONS, requireCommitted: true }).ok, false);
+    assert.equal(verifySuiteLock({ lock: invalid, targetVersions: RELEASE_TARGET_VERSIONS, targetRefs: RELEASE_TARGET_REFS, requireCommitted: true }).ok, false);
   }
 });
 

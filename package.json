@@ -1,6 +1,6 @@
 {
   "name": "truth-tools",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Deterministic evidence and health-consistency review gate for technical-program status artifacts.",
   "license": "MIT",
   "type": "module",

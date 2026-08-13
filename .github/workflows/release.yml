@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Exact release tag to publish (for example, v0.3.1)
+        description: Exact release tag to publish (for example, v0.4.1)
         required: true
         type: string
 

@@ -1,7 +1,7 @@
-# Product reset — 0.4.0 / planned 0.4.1 correction
+# Product reset — 0.4.0 / 0.4.1 correction
 
 This document records the 0.4 reset, the published 0.4.0 old-generation line,
-the planned 0.4.1 current complete v2 correction, and how the
+the 0.4.1 current complete v2 correction, and how the
 flagship product is scoped. It complements the review that drove the reset
 (`docs/product-review.md`).
 
@@ -17,7 +17,7 @@ publication. It is not a source connector and not an LLM judge.
 
 ## What changed
 
-| Dimension | 0.2.x (legacy umbrella) | 0.4.0 published old-generation line / planned 0.4.1 current complete v2 line |
+| Dimension | 0.2.x (legacy umbrella) | 0.4.0 published old-generation line / 0.4.1 current complete v2 line |
 | --- | --- | --- |
 | MCP surface | Nine tools across capture/timeline/program/rendering | Two tools: `truth.review`, `truth.doctor` |
 | Review verdict | Single `readiness` value | `artifact_quality` (pass/needs_review/fail) and `program_health` (on_track/at_risk/blocked/unknown) |

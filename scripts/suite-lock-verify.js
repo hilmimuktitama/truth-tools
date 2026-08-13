@@ -15,6 +15,11 @@ export const RELEASE_TARGET_VERSIONS = Object.freeze({
   "timeline-truth": "0.4.0",
   "program-truth": "0.3.1"
 });
+export const RELEASE_TARGET_REFS = Object.freeze({
+  "capture-truth": "c6ec36229d545b1ccb82fe9276971f0d36354d0b",
+  "timeline-truth": "df8dde4fbb25b9347f1a08aab00e5850a74a7e3d",
+  "program-truth": "526c434b0379257748a2dd7ed24b76b72036ceca"
+});
 const RELEASE_TARGET_KEYS = Object.freeze(Object.keys(RELEASE_TARGET_VERSIONS));
 const SHA = /^[0-9a-f]{40}$/;
 const REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
@@ -24,7 +29,7 @@ export function readSuiteLock(path = new URL("../suite-lock.json", import.meta.u
   return JSON.parse(readFileSync(path, "utf8"));
 }
 
-export function verifySuiteLock({ lock = readSuiteLock(), componentRoot, verifyCheckouts = false, verifyContracts = false, requireCommitted = false, targetVersions } = {}) {
+export function verifySuiteLock({ lock = readSuiteLock(), componentRoot, verifyCheckouts = false, verifyContracts = false, requireCommitted = false, targetVersions, targetRefs } = {}) {
   const failures = [];
   const components = lock && typeof lock === "object" ? lock.components : undefined;
   if (targetVersions && JSON.stringify(Object.keys(targetVersions).sort()) !== JSON.stringify(RELEASE_TARGET_KEYS.slice().sort())) failures.push("target versions must specify every Truth Suite component");
@@ -44,6 +49,7 @@ export function verifySuiteLock({ lock = readSuiteLock(), componentRoot, verifyC
     if (!VERSION.test(entry.version ?? "")) failures.push(`${name}: malformed version`);
     if (VERSION.test(entry.version ?? "") && targetVersions && !atLeast(entry.version, CONTRACT_FLOORS[name])) failures.push(`${name}: lock version ${entry.version} is below contract floor ${CONTRACT_FLOORS[name]}`);
     if (targetVersions?.[name] && entry.version !== targetVersions[name]) failures.push(`${name}: lock version ${entry.version} does not match target ${targetVersions[name]}`);
+    if (targetRefs?.[name] && entry.ref !== targetRefs[name]) failures.push(`${name}: lock ref ${entry.ref} does not match release target ${targetRefs[name]}`);
     if (requireCommitted && entry.provisional === true) failures.push(`${name}: provisional ref is not releaseable`);
     const expectedRepository = name === "program-truth" ? "hilmimuktitama/program-truth" : `hilmimuktitama/${name}`;
     if (entry.repository !== expectedRepository) failures.push(`${name}: repository identity must be ${expectedRepository}`);
@@ -253,7 +259,8 @@ if (process.argv[1] === new URL(import.meta.url).pathname) {
       verifyCheckouts: options.flags.has("--verify-checkouts"),
       verifyContracts: options.flags.has("--verify-contracts"),
       requireCommitted: options.flags.has("--release"),
-      targetVersions: options.flags.has("--release") ? RELEASE_TARGET_VERSIONS : undefined
+      targetVersions: options.flags.has("--release") ? RELEASE_TARGET_VERSIONS : undefined,
+      targetRefs: options.flags.has("--release") ? RELEASE_TARGET_REFS : undefined
     });
     if (options.flags.has("--github-output")) {
       if (!result.ok) process.stderr.write(`Suite lock verification: FAIL\n${result.failures.map((failure) => `  FAIL  ${failure}`).join("\n")}\n`);
