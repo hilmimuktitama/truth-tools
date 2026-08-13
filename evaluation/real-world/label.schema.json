@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["id", "reviewer", "defect_types", "health", "compatibility", "tolerated", "artifact_quality"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "reviewer": { "type": "string", "enum": ["reviewer_a", "reviewer_b", "adjudicator"] },
+    "defect_types": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+    "health": { "type": "string", "enum": ["on_track", "at_risk", "blocked", "unknown"] },
+    "compatibility": { "type": "boolean" },
+    "tolerated": { "type": "boolean" },
+    "artifact_quality": { "type": "string", "enum": ["pass", "needs_review", "fail"] },
+    "notes": { "type": "string" }
+  },
+  "additionalProperties": false
+}

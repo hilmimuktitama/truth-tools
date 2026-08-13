@@ -27,10 +27,11 @@ output. Two provenance extensions are canonical and accepted:
 - `sources[].raw_included` — optional boolean metadata from a capture
   component (the capture record held a body in its system of record). It is
   preserved, never treated as a body, and never present on legacy input.
-- `claims[].source_refs[].{heading, tableRow, line, text}` — Timeline Truth
-  provenance passthrough (section heading, 1-based table row, 1-based line
-  number, verbatim text). These fields never relax the required
-  `source_id` + `locator` contract.
+- `claims[].source_refs[].{heading, tableRow, line}` — Timeline Truth
+  provenance passthrough (section heading, 1-based table row, and 1-based line
+  number). Canonical SourceRef deliberately excludes `text`: verbatim source
+  text is never portable. These fields never relax the required `source_id` +
+  `locator` contract.
 
 ## Output changes
 
@@ -100,3 +101,13 @@ The canonical schemas ship in the `truth-tools-contracts` package and live in
 `packages/contracts/schemas/`. Validate against `status-artifact.schema.json`
 for input and `truth-review.schema.json` for output. `npm run
 contracts:verify` enforces conformance in CI.
+# Migration to 0.4.0
+
+StatusArtifact v2 requires `schema_version: "2.0.0"` and a non-empty
+`health_assessment` containing `state`, `owner`, `rationale`, and canonical
+`source_refs` whose IDs exist and whose locators are present. Legacy 1.0.0 is
+accepted only as a visible compatibility path and emits migration/deprecation
+findings.
+
+SourceRef `text` is no longer canonical. Legacy input is stripped and emits
+`deprecated_source_ref_text`; it is never copied into notes or reports.

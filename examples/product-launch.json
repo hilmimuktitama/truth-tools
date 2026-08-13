@@ -1,6 +1,6 @@
 {
   "kind": "status_artifact",
-  "schema_version": "1.0.0",
+  "schema_version": "2.0.0",
   "as_of": "2026-08-11T00:00:00.000Z",
   "initiative": {
     "name": "Checkout migration",
@@ -10,6 +10,12 @@
   "policy": {
     "max_observation_age_days": 14,
     "max_source_content_age_days": 14
+  },
+  "health_assessment": {
+    "state": "on_track",
+    "owner": "Platform TPM",
+    "rationale": "The supplied active claims are facts; no risk or blocker is recorded.",
+    "source_refs": [{ "source_id": "jira-release", "locator": "https://example.atlassian.net/browse/PLAT-123" }]
   },
   "sources": [
     {

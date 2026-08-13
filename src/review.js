@@ -1,6 +1,7 @@
 import { CLAIM_KINDS, SCHEMA_VERSION } from "./contracts.js";
 import {
   TOP_LEVEL_FIELDS,
+  ARTIFACT_INPUT_LIMITS,
   canonicalValue,
   compactObject,
   isObject,
@@ -9,6 +10,7 @@ import {
   normalizeCollection,
   normalizeDate,
   normalizeInitiative,
+  normalizeHealthAssessment,
   normalizePolicy,
   normalizeSource,
   normalizeTimelineItems,
@@ -28,12 +30,16 @@ export function reviewTruth(input = {}) {
 
   const issues = [];
   const deprecations = [];
-  reportUnsupportedFields(input, TOP_LEVEL_FIELDS, "unsupported_top_level_field", "input", issues);
+  reportUnsupportedFields(input, TOP_LEVEL_FIELDS, "unsupported_top_level_field", "input", issues, {
+    maxProperties: ARTIFACT_INPUT_LIMITS.max_unsupported_top_level_fields,
+    maxFields: ARTIFACT_INPUT_LIMITS.max_unsupported_top_level_fields
+  });
 
   const asOf = normalizeDate(input.as_of, "as_of");
   const policy = normalizePolicy(input.policy, issues, deprecations);
   const initiative = normalizeInitiative(input.initiative, issues);
   const sourceResult = normalizeSources(input.sources, { asOf, policy, issues, deprecations });
+  normalizeArtifactVersion(input, issues, deprecations);
   const claims = normalizeClaimsInput(input.claims, {
     sourceIds: sourceResult.sourceIds,
     issues,
@@ -41,7 +47,12 @@ export function reviewTruth(input = {}) {
   });
   const conflicts = findConflicts(claims);
   const timeline = normalizeTimelineItems(input.timeline, issues, deprecations);
-  const baselineTimeline = normalizeTimelineItems(input.baseline_timeline, issues, deprecations);
+  const baselineTimeline = normalizeTimelineItems(input.baseline_timeline, issues, deprecations, ARTIFACT_INPUT_LIMITS.max_baseline_timeline_items);
+  const healthResult = normalizeHealthAssessment(input.health_assessment, {
+    sourceIds: sourceResult.sourceIds,
+    issues,
+    deprecations
+  });
 
   let timelineDrift;
   if (input.baseline_timeline !== undefined && input.timeline !== undefined) {
@@ -56,9 +67,13 @@ export function reviewTruth(input = {}) {
   const blockers = claims.filter((claim) => claim.kind === "blocker");
   const risks = claims.filter((claim) => claim.kind === "risk");
   const unknowns = claims.filter((claim) => claim.kind === "unknown");
+  const activeBlockers = activeClaims.filter((claim) => claim.kind === "blocker");
+  const activeRisks = activeClaims.filter((claim) => claim.kind === "risk");
+  const activeUnknowns = activeClaims.filter((claim) => claim.kind === "unknown");
 
+  const health = determineHealthResolution(activeClaims, healthResult.reportedState, issues);
+  const recommendedActions = recommendActions({ blockers: activeBlockers, risks: activeRisks, unknowns: activeUnknowns, conflicts, issues });
   const artifactQuality = determineArtifactQuality({ conflicts, issues });
-  const programHealth = determineProgramHealth(activeClaims);
 
   return {
     kind: "truth_review",
@@ -66,8 +81,12 @@ export function reviewTruth(input = {}) {
     initiative,
     as_of: asOf,
     policy,
+    ...(healthResult.assessment ? { health_assessment: healthResult.assessment } : {}),
     artifact_quality: artifactQuality,
-    program_health: programHealth,
+    reported_program_health: health.reportedProgramHealth,
+    claim_health_floor: health.claimHealthFloor,
+    program_health: health.programHealth,
+    health_consistency: health.healthConsistency,
     summary: {
       sources: sourceResult.sources.length,
       claims: claims.length,
@@ -92,7 +111,7 @@ export function reviewTruth(input = {}) {
       issues,
       deprecations
     },
-    recommended_actions: recommendActions({ blockers, risks, unknowns, conflicts, issues })
+     recommended_actions: recommendedActions
   };
 }
 
@@ -107,6 +126,12 @@ export function doctorTruthTools() {
         observed_at: "2026-08-10T00:00:00.000Z"
       }
     ],
+    health_assessment: {
+      state: "on_track",
+      owner: "Platform TPM",
+      rationale: "The scoped doctor fixture has no active blocker, risk, or unknown claims.",
+      source_refs: [{ source_id: "status-note", locator: "note:doctor-health" }]
+    },
     claims: [
       {
         id: "claim-1",
@@ -216,11 +241,95 @@ export function determineArtifactQuality({ conflicts, issues }) {
   return "pass";
 }
 
-export function determineProgramHealth(activeClaims) {
-  if (activeClaims.some((claim) => claim.kind === "blocker")) return "blocked";
-  if (activeClaims.some((claim) => claim.kind === "risk" || claim.kind === "unknown")) return "at_risk";
-  if (activeClaims.some((claim) => claim.kind === "fact")) return "on_track";
-  return "unknown";
+export function determineProgramHealth(activeClaims, reportedProgramHealth) {
+  return determineHealthResolution(activeClaims, reportedProgramHealth, []).programHealth;
+}
+
+export function determineHealthResolution(activeClaims, reportedProgramHealth, issues) {
+  const hasFact = activeClaims.some((claim) => claim.kind === "fact");
+  const hasBlocker = activeClaims.some((claim) => claim.kind === "blocker");
+  const hasRiskSignal = activeClaims.some((claim) => claim.kind === "risk" || claim.kind === "unknown");
+  const claimHealthFloor = hasBlocker ? "blocked" : hasRiskSignal ? "at_risk" : "none";
+  let healthConsistency = reportedProgramHealth ? "consistent" : "missing";
+
+  if (hasBlocker && reportedProgramHealth !== undefined && reportedProgramHealth !== "blocked") {
+    healthConsistency = "conflicting";
+    issues.push(
+      issue(
+        "health_assessment_conflicts_with_blocker",
+        "blocking",
+        "health_assessment.state",
+        `Reported health '${reportedProgramHealth}' conflicts with an active blocker; final health is blocked.`
+      )
+    );
+  } else if (!hasBlocker && hasRiskSignal && ["on_track", "unknown"].includes(reportedProgramHealth)) {
+    healthConsistency = "understated";
+    issues.push(
+      issue(
+        "health_assessment_understates_active_signals",
+        "review",
+        "health_assessment.state",
+        `Reported health '${reportedProgramHealth}' understates active blocker, risk, or unknown claims.`
+      )
+    );
+  } else if (reportedProgramHealth === "blocked" && !hasBlocker) {
+    healthConsistency = "unsupported";
+    issues.push(
+      issue(
+        "blocked_health_without_blocker_claim",
+        "review",
+        "health_assessment.state",
+        "Reported blocked health has no active blocker claim; final health remains blocked."
+      )
+    );
+  } else if (reportedProgramHealth === "at_risk" && !hasBlocker && !hasRiskSignal) {
+    healthConsistency = "unsupported";
+    issues.push(
+      issue(
+        "at_risk_health_without_supporting_claim",
+        "review",
+        "health_assessment.state",
+        "Reported at-risk health has no active blocker, risk, or unknown claim; final health remains at_risk."
+      )
+    );
+  }
+
+  const programHealth = claimHealthFloor === "blocked"
+    ? "blocked"
+    : reportedProgramHealth === "blocked"
+      ? "blocked"
+      : claimHealthFloor === "at_risk"
+        ? "at_risk"
+        : hasFact && reportedProgramHealth === "on_track" ? "on_track" : "unknown";
+
+  return {
+    reportedProgramHealth: reportedProgramHealth ?? null,
+    claimHealthFloor,
+    programHealth,
+    healthConsistency
+  };
+}
+
+function normalizeArtifactVersion(input, issues, deprecations) {
+  if (input.schema_version === "2.0.0") return;
+  if (input.schema_version === undefined || input.schema_version === "1.0.0") {
+    deprecations.push({
+      type: "deprecated_status_artifact_v1",
+      severity: "deprecated",
+      location: "schema_version",
+      message: "StatusArtifact v1 is accepted only through the compatibility path.",
+      suggested: "Migrate to schema_version 2.0.0 and add health_assessment."
+    });
+    return;
+  }
+  issues.push(
+    issue(
+      "unsupported_status_artifact_version",
+      "blocking",
+      "schema_version",
+      `Unsupported StatusArtifact schema_version '${String(input.schema_version)}'.`
+    )
+  );
 }
 
 function recommendActions({ blockers, risks, unknowns, conflicts, issues }) {
@@ -269,9 +378,30 @@ function recommendActions({ blockers, risks, unknowns, conflicts, issues }) {
     actions.push({ priority: "P2", type: "improve_evidence", action: item.message, location: item.location });
   }
 
-  return uniqueBy(actions, (item) =>
+  const uniqueActions = uniqueBy(actions, (item) =>
     [item.priority, item.type, item.claim_id, item.subject, item.location, item.action].map((part) => part ?? "").join("|")
   );
+  if (uniqueActions.length > ARTIFACT_INPUT_LIMITS.max_recommended_actions) {
+    issues.push(issue(
+      "recommended_actions_truncated",
+      "blocking",
+      "recommended_actions",
+      `recommended_actions exceeds the maximum of ${ARTIFACT_INPUT_LIMITS.max_recommended_actions} entries; remaining actions were omitted.`
+    ));
+  }
+  return uniqueActions
+    .slice(0, ARTIFACT_INPUT_LIMITS.max_recommended_actions)
+    .map((item) => ({ ...item, action: boundRecommendedAction(item.action) }));
+}
+
+function boundRecommendedAction(value) {
+  // Keep generated guidance safe for single-line renderers and within the
+  // truth-review action contract regardless of claim text layout.
+  const singleLine = String(value ?? "").replace(/\s+/gu, " ").trim();
+  let bounded = singleLine.slice(0, 4096);
+  // Do not leave a lone high surrogate at the schema boundary.
+  if (bounded.length > 0 && /[\uD800-\uDBFF]/u.test(bounded.at(-1))) bounded = bounded.slice(0, -1);
+  return bounded;
 }
 
 function blockerAction(item) {

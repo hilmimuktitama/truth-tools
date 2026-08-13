@@ -1,12 +1,13 @@
 import { readFileSync } from "node:fs";
 
-export const SCHEMA_VERSION = "1.0.0";
+export const SCHEMA_VERSION = "2.0.0";
 
 export const CONTRACT_NAMES = [
   "source",
   "source-ref",
   "candidate-claim",
   "claim",
+  "health-assessment",
   "timeline-item",
   "status-artifact",
   "truth-review",

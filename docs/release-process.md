@@ -10,14 +10,14 @@ is `.github/workflows/release.yml`.
 
 ## Versioning
 
-- `0.3.1` is the current patch version and is published from an exact tag.
-- The review contract carries its own `schema_version: "1.0.0"` inside
+- `0.4.0` is the current patch version and is published from an exact tag.
+- The review contract carries its own `schema_version: "2.0.0"` inside
   `TruthReview`; it is independent of the npm version and only bumps when the
   canonical schemas change incompatibly.
 - The coordinated release set is `capture-truth@0.4.1` (evidence-pack intake
   with normalized, deterministic capture output; not a truth linter),
   `timeline-truth@0.3.1`,
-  `program-truth@0.2.1`, and `truth-tools@0.3.1`. See the
+  `program-truth@0.2.1`, and `truth-tools@0.4.0`. See the
   [suite release plan](release-plan.md).
 
 ## Before a release (maintainer)

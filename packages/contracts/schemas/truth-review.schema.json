@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://truth-tools.dev/schemas/truth-review.schema.json",
   "title": "TruthReview",
-  "description": "Deterministic review result. artifact_quality describes the evidence structure of the supplied artifact; program_health describes the state of the program the active claims report. The two dimensions are independent: an artifact can pass review while the program is blocked. Freshness findings distinguish observation age (as_of - observed_at), content age (as_of - source_updated_at), and snapshot gap (source_updated_at - observed_at). Only claims with state active participate in contradictions and program health.",
+  "description": "TruthReview v2.0.0 reports independent evidence quality and explicit health dimensions. Algorithm: consider only active claims (superseded and historical claims do not affect health). claim_health_floor is blocked when any active blocker exists, at_risk when there is no active blocker and any active risk or unknown exists, and none otherwise. program_health resolves to blocked when the floor is blocked, otherwise to at_risk when the floor is at_risk, otherwise to the reported health when it is blocked, otherwise to on_track only when at least one active fact exists and the reported health is on_track; in all other cases it is unknown. reported_program_health is the supplied HealthAssessment state, and health_consistency records missing, consistent, understated, unsupported, or conflicting relationships. artifact_quality is fail for any contradiction or blocking finding, including health_assessment_conflicts_with_blocker; needs_review is for non-blocking findings; pass has neither.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -12,7 +12,10 @@
     "as_of",
     "policy",
     "artifact_quality",
+    "reported_program_health",
+    "claim_health_floor",
     "program_health",
+    "health_consistency",
     "summary",
     "sources",
     "claims",
@@ -24,7 +27,7 @@
       "const": "truth_review"
     },
     "schema_version": {
-      "const": "1.0.0"
+      "const": "2.0.0"
     },
     "initiative": {
       "type": "object",
@@ -53,10 +56,25 @@
       "enum": ["pass", "needs_review", "fail"],
       "description": "pass: no evidence issues and no contradictions. needs_review: only review-level issues such as stale evidence or missing locators. fail: any blocking issue or any contradiction."
     },
+    "health_assessment": {
+      "$ref": "https://truth-tools.dev/schemas/health-assessment.schema.json"
+    },
+    "reported_program_health": {
+      "type": ["string", "null"],
+      "enum": ["on_track", "at_risk", "blocked", "unknown", null]
+    },
+    "claim_health_floor": {
+      "type": "string",
+      "enum": ["none", "at_risk", "blocked"]
+    },
     "program_health": {
       "type": "string",
       "enum": ["on_track", "at_risk", "blocked", "unknown"],
-      "description": "Computed from active claims only. blocked: at least one active blocker. at_risk: no active blockers but at least one active risk or unknown. on_track: at least one active fact and no active blocker, risk, or unknown. unknown: no active kind-classified claims."
+      "description": "Computed by the v2 algorithm in the schema description from active claims and the explicit reported health; an active blocker always resolves to blocked."
+    },
+    "health_consistency": {
+      "type": "string",
+      "enum": ["consistent", "missing", "understated", "unsupported", "conflicting"]
     },
     "summary": {
       "type": "object",
@@ -147,7 +165,20 @@
     },
     "recommended_actions": {
       "type": "array",
-      "items": { "type": "object" }
+      "maxItems": 200,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["priority", "type", "action"],
+        "properties": {
+          "priority": { "type": "string", "enum": ["P0", "P1", "P2"] },
+          "type": { "type": "string", "enum": ["resolve_blocker", "reconcile_conflict", "fix_evidence", "mitigate_risk", "close_unknown", "improve_evidence"] },
+          "claim_id": { "type": "string", "minLength": 1 },
+          "subject": { "type": "string", "minLength": 1 },
+          "location": { "type": "string", "minLength": 1 },
+          "action": { "type": "string", "minLength": 1, "maxLength": 4096 }
+        }
+      }
     }
   }
 }

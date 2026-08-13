@@ -2,16 +2,16 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://truth-tools.dev/schemas/status-artifact.schema.json",
   "title": "StatusArtifact",
-  "description": "Canonical input to truth.review: a stamped evidence container. kind and schema_version are required; the initiative declares name/owner/objective; policy splits observation age from content age; sources and claims are required; claims MUST be reviewed Claims (claim.schema.json), never CandidateClaims. The engine also accepts deprecated compatibility forms (captured_at, sourceId, plain-string source references, max_source_age_days alias) and reports them as deprecation findings. A snapshot gap is the interval source_updated_at - observed_at when the update is within as_of; it is reported independently of both ages.",
+  "description": "StatusArtifact v2.0.0 is the canonical metadata-only input. Legacy 1.0.0 input is accepted only through a visible migration/deprecation compatibility path. Bodies stay in their system of record.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["kind", "schema_version", "as_of", "initiative", "policy", "sources", "claims"],
+  "required": ["kind", "schema_version", "as_of", "initiative", "policy", "sources", "claims", "health_assessment"],
   "properties": {
     "kind": {
       "const": "status_artifact"
     },
     "schema_version": {
-      "const": "1.0.0"
+      "const": "2.0.0"
     },
     "as_of": {
       "type": "string",
@@ -50,6 +50,7 @@
     "sources": {
       "type": "array",
       "minItems": 1,
+      "maxItems": 1000,
       "items": {
         "$ref": "https://truth-tools.dev/schemas/source.schema.json"
       }
@@ -57,13 +58,19 @@
     "claims": {
       "type": "array",
       "minItems": 1,
+      "maxItems": 5000,
       "items": {
         "$ref": "https://truth-tools.dev/schemas/claim.schema.json"
       },
       "description": "Reviewed claims only; candidate capture output must be promoted to Claims first."
     },
+    "health_assessment": {
+      "$ref": "https://truth-tools.dev/schemas/health-assessment.schema.json",
+      "description": "Explicit reported health. Facts alone never imply on_track. An active blocker always resolves program_health to blocked; if the reported state is on_track or at_risk, the health consistency is conflicting and artifact_quality is fail."
+    },
     "timeline": {
       "type": "array",
+      "maxItems": 500,
       "items": {
         "$ref": "https://truth-tools.dev/schemas/timeline-item.schema.json"
       },
@@ -71,6 +78,7 @@
     },
     "baseline_timeline": {
       "type": "array",
+      "maxItems": 500,
       "items": {
         "$ref": "https://truth-tools.dev/schemas/timeline-item.schema.json"
       },

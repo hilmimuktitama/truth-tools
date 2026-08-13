@@ -19,13 +19,19 @@ import { verifyContracts } from "../scripts/contracts-verify.js";
 function canonicalArtifact() {
   return {
     kind: "status_artifact",
-    schema_version: "1.0.0",
+    schema_version: "2.0.0",
     as_of: "2026-08-11T00:00:00.000Z",
     initiative: { name: "Contract sample" },
     policy: { max_observation_age_days: 14, max_source_content_age_days: 14 },
     sources: [
       { id: "s1", type: "jira", observed_at: "2026-08-10T00:00:00.000Z", source_updated_at: "2026-08-10T00:00:00.000Z" }
     ],
+    health_assessment: {
+      state: "on_track",
+      owner: "Platform TPM",
+      rationale: "The active evidence contains facts only.",
+      source_refs: [{ source_id: "s1", locator: "https://example.atlassian.net/browse/PLAT-1" }]
+    },
     claims: [
       {
         id: "c1",
@@ -57,7 +63,7 @@ test("the canonical StatusArtifact validates and its review validates", () => {
 
   const review = reviewTruth(artifact);
   const reviewCheck = validateTruthReview(review);
-  assert.equal(reviewCheck.valid, true);
+  assert.equal(reviewCheck.valid, true, JSON.stringify(reviewCheck.errors));
 });
 
 test("the contracts package rejects raw bodies, missing timestamps, and unknown kinds", () => {
@@ -76,6 +82,33 @@ test("the contracts package rejects raw bodies, missing timestamps, and unknown 
   const topLevelJunk = canonicalArtifact();
   topLevelJunk.debug = true;
   assert.equal(validateStatusArtifact(topLevelJunk).valid, false);
+});
+
+test("the canonical Claim schema requires at least one source_ref", () => {
+  const claim = canonicalArtifact().claims[0];
+  const missing = { ...claim };
+  delete missing.source_refs;
+
+  assert.equal(validateContract("claim", missing).valid, false);
+  assert.equal(validateContract("claim", { ...claim, source_refs: [] }).valid, false);
+});
+
+test("the Source schema rejects raw-like keys recursively in fields and metadata", () => {
+  const source = canonicalArtifact().sources[0];
+  source.fields = { safe: { label: "contentful" }, nested: [{ body: "secret" }] };
+  source.metadata = { safe: { note: "payload status" }, nested: { data: "secret" } };
+
+  assert.equal(validateContract("source", source).valid, false);
+});
+
+test("the Source schema matches runtime raw aliases case-insensitively without rejecting harmless keys", () => {
+  const base = { id: "s1", type: "note", observed_at: "2026-08-10T00:00:00Z" };
+  for (const key of ["RAWContent", "RAW__Body", "DESCRIPTIONmarkdown", " DATA ", "Constructor", "__PROTO__"]) {
+    assert.equal(validateContract("source", { ...base, fields: { [key]: "secret" } }).valid, false, key);
+  }
+  for (const key of ["contentful", "context_id", "status_text", "payload_status", "documentation", "content_hash"]) {
+    assert.equal(validateContract("source", { ...base, fields: { [key]: "safe" } }).valid, true, key);
+  }
 });
 
 test("source raw_included is provenance metadata and raw bodies still fail", () => {
@@ -102,7 +135,6 @@ test("source refs accept Timeline Truth provenance fields but still require loca
       heading: "Status",
       tableRow: 3,
       line: 12,
-      text: "In Progress"
     }
   ];
   assert.equal(validateStatusArtifact(artifact).valid, true);
@@ -203,6 +235,37 @@ test("source-ref schema accepts objects with source_id and locator, not strings"
 
   const missingId = validateContract("source-ref", { note: "nope" });
   assert.equal(missingId.valid, false);
+});
+
+test("CandidateClaim matches Capture Truth 0.5 review semantics", () => {
+  const base = {
+    id: "candidate-1",
+    text: "Candidate text.",
+    classification_method: "keyword",
+    source_refs: [{ source_id: "s1", locator: "source:s1" }],
+    derivation_version: "0.5.0",
+    source_material: "metadata"
+  };
+
+  assert.equal(validateContract("candidate-claim", { ...base, review_status: "unreviewed" }).valid, true);
+  assert.equal(validateContract("candidate-claim", { ...base, review_status: "unreviewed", reviewed_by: null, reviewed_at: null }).valid, true);
+  for (const review_status of ["approved_for_portable", "rejected"]) {
+    assert.equal(validateContract("candidate-claim", { ...base, review_status }).valid, false);
+    assert.equal(validateContract("candidate-claim", {
+      ...base,
+      review_status,
+      reviewed_by: "Ada",
+      reviewed_at: "2026-08-13T12:00:00Z"
+    }).valid, true);
+    assert.equal(validateContract("candidate-claim", {
+      ...base,
+      review_status,
+      reviewed_by: "   ",
+      reviewed_at: "2026-08-13T12:00:00Z"
+    }).valid, false);
+  }
+  assert.equal(validateContract("candidate-claim", { ...base, review_status: "unreviewed", kind: "fact" }).valid, false);
+  assert.equal(validateContract("candidate-claim", { ...base, review_status: "unreviewed", source_refs: [{ source_id: "s1", locator: "source:s1", text: "verbatim" }] }).valid, false);
 });
 
 test("schema files on disk match the exported contracts", () => {

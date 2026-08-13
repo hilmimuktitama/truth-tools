@@ -16,14 +16,14 @@
       <p class="eyebrow">Deterministic evidence review</p>
       <h1>Truth Tools</h1>
       <p class="lede">
-        A launch-readiness status report, reviewed twice. The evidence structure gets fixed;
-        the program stays blocked. See the difference between <strong>artifact quality</strong>
-        and <strong>program health</strong>.
+        Three launch-readiness status scenarios show the difference between <strong>artifact quality</strong>
+        and <strong>program health</strong>: broken evidence, fixed evidence, and a facts-only report.
       </p>
       <nav aria-label="Sections">
         <ul class="nav-list">
           <li><a href="#story">Broken vs fixed</a></li>
           <li><a href="#quality-health">Quality vs health</a></li>
+          <li><a href="#health-dimensions">Health assessment</a></li>
           <li><a href="#freshness">Freshness</a></li>
           <li><a href="#categories">Categories, conflicts, actions</a></li>
           <li><a href="#drift">Timeline drift</a></li>
@@ -36,17 +36,20 @@
 
   <main id="main">
     <section id="story" class="wrap" aria-labelledby="story-heading">
-      <h2 id="story-heading">One report, two reviews</h2>
+      <h2 id="story-heading">One report, three reviews</h2>
       <p>
         Both reviews run the same deterministic engine on the same story: a checkout migration
-        launch that needs a rollback owner. The broken artifact embeds a raw Jira body, misses an
-        evidence timestamp, keeps a stale snapshot, and lets two sources contradict each other.
-        The fixed artifact contains metadata only, with fresh timestamps and reconciled dates.
+         launch that needs a rollback owner. The broken artifact embeds a raw Jira body, misses an
+         evidence timestamp, keeps a stale snapshot, and lets two sources contradict each other.
+         The fixed artifact contains metadata only, with fresh timestamps and reconciled dates.
+         The facts-only artifact records only <code>release.ready=false</code> and intentionally omits
+         a health assessment, so its final health is unknown.
       </p>
 
       <div class="toggle" role="group" aria-label="Choose review">
-        <button type="button" id="view-broken" class="toggle-button" aria-pressed="true">Broken evidence</button>
-        <button type="button" id="view-fixed" class="toggle-button" aria-pressed="false">Fixed evidence</button>
+          <button type="button" id="view-broken" class="toggle-button" aria-pressed="true">Broken evidence</button>
+          <button type="button" id="view-fixed" class="toggle-button" aria-pressed="false">Fixed evidence</button>
+          <button type="button" id="view-facts-only" class="toggle-button" aria-pressed="false">Facts-only evidence</button>
       </div>
 
       <div id="verdict" class="verdict" aria-live="polite">
@@ -75,7 +78,7 @@
           <p><code>on_track</code> | <code>at_risk</code> | <code>blocked</code> | <code>unknown</code></p>
           <p>
             What do the claims say about the program? Any explicit blocker means blocked; risks and
-            unknowns mean at risk; only facts means on track.
+            unknowns mean at risk; on-track requires an explicit on-track health assessment plus active facts and no active risk, unknown, or blocker.
           </p>
         </div>
       </div>
@@ -93,6 +96,12 @@
       <div id="freshness-panel" class="freshness-panel"></div>
     </section>
 
+    <section id="health-dimensions" class="wrap" aria-labelledby="health-dimensions-heading">
+      <h2 id="health-dimensions-heading">Explicit health dimensions</h2>
+      <div id="health-panel" class="card"></div>
+      <p class="disclaimer">Disclaimer: Truth Tools reports the supplied assessment and deterministic claim floor; it does not prove real-world program health.</p>
+    </section>
+
     <section id="categories" class="wrap" aria-labelledby="categories-heading">
       <h2 id="categories-heading">Categories, conflicts, actions</h2>
       <div class="two-col">
@@ -104,6 +113,10 @@
           <h3>Conflicts</h3>
           <ul id="conflicts-panel" class="plain-list"></ul>
         </div>
+      </div>
+      <div class="card">
+        <h3>Findings</h3>
+        <ul id="findings-panel" class="plain-list"></ul>
       </div>
       <div class="card">
         <h3>Recommended actions</h3>
@@ -147,6 +160,8 @@
           <div>
             <h3>Capture truth</h3>
             <ul id="sibling-capture" class="plain-list"></ul>
+            <h3>Facts-only candidate safety</h3>
+            <ul id="sibling-candidates" class="plain-list"></ul>
           </div>
           <div>
             <h3>Timeline truth diff</h3>

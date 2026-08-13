@@ -1,6 +1,6 @@
 # Launch readiness demo
 
-The `examples/launch-readiness/` directory is the integrated showcase for Truth Tools: a launch-readiness status artifact built from Jira, a decision log, and meeting notes — reviewed twice, once with broken evidence and once with fixed evidence.
+The `examples/launch-readiness/` directory is the integrated showcase for Truth Tools: a launch-readiness status artifact built from Jira, a decision log, and meeting notes — reviewed as broken evidence, fixed evidence, and a facts-only report.
 
 ## The story
 
@@ -10,6 +10,8 @@ The checkout migration is scheduled to launch. The status artifact claims the la
 - **Fixed evidence** (`evidence-pack.json`, mirrored by `status-artifact-fixed.json`) records only source metadata, adds `observed_at` and `source_updated_at` everywhere, reconciles the launch date, and keeps the blocker visible with an owner and a due date. The review result is **artifact_quality: pass, program_health: blocked** (`truth-review-fixed.json` / `.md`).
 
 The point: artifact quality and program health are independent dimensions. Clean evidence does not make the program healthy; it makes the blocker trustworthy.
+
+The **facts-only scenario** (`status-artifact-facts-only.json`) contains the single canonical fact `release.ready=false`, with no blockers, risks, unknown claims, or health assessment. Its review is **artifact_quality: needs_review, reported_program_health: missing, claim_health_floor: none, program_health: unknown, health_consistency: missing**, with the `missing_health_assessment` finding.
 
 ## Timeline drift
 
@@ -28,6 +30,8 @@ The point: artifact quality and program health are independent dimensions. Clean
 | `status-artifact-fixed.json` | Byte-identical copy of the evidence pack; the demo verifies they never drift. |
 | `truth-review-broken.json` / `.md` | Engine output for the broken artifact. |
 | `truth-review-fixed.json` / `.md` | Engine output for the fixed artifact. |
+| `status-artifact-facts-only.json` | Public-safe canonical v2 artifact containing only `release.ready=false`. |
+| `truth-review-facts-only.json` / `.md` | Engine output for the facts-only artifact. |
 | `timeline-drift.json` / `.md` | Engine timeline diff output. |
 | `README.md` | This file. |
 

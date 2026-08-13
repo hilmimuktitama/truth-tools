@@ -1,8 +1,11 @@
 # Resume wording
 
-Resume bullets for Truth Tools. They are kept honest: they describe what the
-tool verifies, not what it proves. Each bullet is one line and can be trimmed
-for space.
+Resume bullets for Truth Tools. They are kept honest: they describe this
+package's deterministic review and orchestration role, not suite-level intake,
+compilation, synthesis, or proof claims. Each bullet is one line and can be
+trimmed for space.
+
+Truth Tools is an evidence-first technical-program reliability toolkit combining provenance-preserving evidence intake, defensible timeline compilation, agent-guided status synthesis, and deterministic pre-publication review.
 
 ## Lead bullet
 
@@ -13,6 +16,10 @@ for space.
 > no-login browser demo with timeline-drift and freshness visualization, and
 > a repeatable synthetic evaluation harness — all shipped with CI, trusted
 > publishing, and 80+ automated tests.
+
+The broader Truth Suite framing includes sibling/operator components for
+provenance-preserving intake, timeline compilation, and agent-guided synthesis;
+this package reviews and orchestrates their metadata-only outputs.
 
 ## Supporting bullets
 

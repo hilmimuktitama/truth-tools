@@ -2,13 +2,19 @@
 
 ## Summary
 
-Truth Tools is a deterministic review gate for generated project-status
-artifacts. It verifies citation integrity, source freshness, typed
+Truth Tools is the deterministic review and orchestration component for
+generated project-status artifacts. It verifies citation integrity, source freshness, typed
 contradictions, and explicit blockers/risks/unknowns — then reports two
 independent verdicts: **artifact quality** (pass/needs_review/fail) and
 **program health** (on_track/at_risk/blocked/unknown). CLI, MCP, canonical
-JSON Schema contracts, a static demo, and a repeatable evaluation harness all
-use the same core.
+ JSON Schema contracts, a static demo, and a repeatable evaluation harness all
+ use the same core.
+
+Truth Tools is an evidence-first technical-program reliability toolkit combining provenance-preserving evidence intake, defensible timeline compilation, agent-guided status synthesis, and deterministic pre-publication review.
+
+That sentence frames the wider Truth Suite: sibling/operator components provide
+evidence intake, timeline compilation, and agent-guided synthesis; Truth Tools
+owns the metadata-only review boundary and orchestration of those outputs.
 
 ## Problem
 

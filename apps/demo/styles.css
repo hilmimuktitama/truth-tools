@@ -245,6 +245,12 @@ pre.code-block code {
   font-weight: 600;
 }
 
+.disclaimer {
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
 .freshness-panel {
   background: var(--surface);
   border: 1px solid var(--line);

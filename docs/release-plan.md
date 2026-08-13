@@ -1,4 +1,4 @@
-# Truth Suite 0.3.1 release history
+# Truth Suite 0.4.0 release history
 
 The coordinated patch set was published on 2026-08-13 from exact version tags
 after the trusted workflow gates passed.
@@ -10,7 +10,7 @@ after the trusted workflow gates passed.
 | `capture-truth` | `0.4.1` | Capture maintainer |
 | `timeline-truth` | `0.3.1` | Timeline maintainer |
 | `program-truth` | `0.2.1` | Program maintainer |
-| `truth-tools` | `0.3.1` | Suite/release maintainer |
+| `truth-tools` | `0.4.0` | Suite/release maintainer |
 
 `capture-truth@0.4.1` provides evidence-pack intake and normalized, deterministic
 capture output; it is not a truth linter. Each component owner owns its changelog, version, tests, tag, and
@@ -31,7 +31,7 @@ pack dry-runs, and trusted npm publishing through GitHub Actions OIDC
 ## Flagship flow
 
 The verified Truth Tools release commit was merged to `main`, passed CI, and was
-tagged `v0.3.1`. Publishing the GitHub Release started the `release.published`
+tagged `v0.4.0`. Publishing the GitHub Release started the `release.published`
 workflow, which checked the tag and package version, ran the full gates and pack
 dry-runs, and published with npm provenance.
 

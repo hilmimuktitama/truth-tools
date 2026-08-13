@@ -15,6 +15,12 @@ function writeInput(overrides = {}) {
     as_of: "2026-08-11T00:00:00.000Z",
     initiative: { name: "CLI sample" },
     sources: [{ id: "source", type: "note", observed_at: "2026-08-10T00:00:00.000Z" }],
+    health_assessment: {
+      state: "on_track",
+      owner: "Platform TPM",
+      rationale: "The active evidence contains facts only.",
+      source_refs: [{ source_id: "source", locator: "https://example.com/notes/status" }]
+    },
     claims: [
       {
         id: "claim",
@@ -72,6 +78,12 @@ test("--fail-on-health blocked returns exit code 2 for a blocked program", async
 
 test("program health never changes the exit code without an explicit health gate", async () => {
   const blocked = writeInput({
+    health_assessment: {
+      state: "blocked",
+      owner: "Platform TPM",
+      rationale: "The active blocker remains unresolved.",
+      source_refs: [{ source_id: "source", locator: "https://example.com/notes/status" }]
+    },
     claims: [
       {
         id: "blocker",
@@ -83,6 +95,7 @@ test("program health never changes the exit code without an explicit health gate
       }
     ]
   });
+  blocked.inputPath;
   const withoutHealthGate = await captureStdout(() => runCli(["review", "--input", blocked.inputPath, "--format", "json"]));
   assert.equal(withoutHealthGate.result, 0);
   assert.match(withoutHealthGate.stdout, /"program_health": "blocked"/);
@@ -124,6 +137,12 @@ test("--fail-on needs_review gates quality only", async () => {
   );
 
   const atRiskButPassing = writeInput({
+    health_assessment: {
+      state: "at_risk",
+      owner: "Platform TPM",
+      rationale: "The active risk is mitigated but remains present.",
+      source_refs: [{ source_id: "source", locator: "https://example.com/notes/status" }]
+    },
     claims: [
       {
         id: "risk",
