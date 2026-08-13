@@ -4,6 +4,8 @@ import test from "node:test";
 
 import { CONTRACT_FLOORS, RELEASE_TARGET_REFS, RELEASE_TARGET_VERSIONS, githubOutputs, parseArgs, readSuiteLock, verifySiblingContracts, verifySuiteLock } from "../scripts/suite-lock-verify.js";
 
+const COMPONENT_ROOT = process.env.TRUTH_SUITE_COMPONENT_ROOT ?? new URL("../../", import.meta.url).pathname;
+
 test("suite lock records the finalized component releases and stable output", () => {
   const lock = readSuiteLock();
   const result = verifySuiteLock({ lock });
@@ -79,14 +81,13 @@ test("release CLI wires exact target enforcement and keeps stdout safe", () => {
 });
 
 test("contract floor fails an old contract that only forges package metadata", () => {
-  const result = verifySiblingContracts({ componentRoot: new URL("../../", import.meta.url).pathname });
+  const result = verifySiblingContracts({ componentRoot: COMPONENT_ROOT });
   assert.equal(result.ok, true, result.failures.join("\n"));
   assert.ok(CONTRACT_FLOORS["program-truth"]);
 });
 
 test("contract verifier enforces Capture, Timeline, and Program public contract details", () => {
-  const root = new URL("../../", import.meta.url).pathname;
-  const result = verifySiblingContracts({ componentRoot: root });
+  const result = verifySiblingContracts({ componentRoot: COMPONENT_ROOT });
   assert.equal(result.ok, true, result.failures.join("\n"));
 });
 
@@ -109,7 +110,7 @@ test("final-lock fixture checks exact current target refs in memory", () => {
 });
 
 test("checked-out sibling contracts meet the staged contract floors", () => {
-  const result = verifySiblingContracts({ componentRoot: new URL("../../", import.meta.url).pathname });
+  const result = verifySiblingContracts({ componentRoot: COMPONENT_ROOT });
   assert.equal(result.ok, true, result.failures.join("\n"));
 });
 

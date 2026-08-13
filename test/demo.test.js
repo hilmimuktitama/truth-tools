@@ -15,6 +15,7 @@ function readJson(relativePath) {
 }
 
 const OSS_ROOT = path.resolve(new URL("../../", import.meta.url).pathname);
+const COMPONENT_ROOT = process.env.TRUTH_SUITE_COMPONENT_ROOT ?? OSS_ROOT;
 const COMPONENTS = ["capture-truth", "timeline-truth", "program-truth"];
 
 function withSiblingEnvironment(root, callback, { required = false } = {}) {
@@ -36,12 +37,12 @@ function temporaryRoot(prefix = "truth-tools-demo-") {
 }
 
 function linkCurrentSiblings(root) {
-  for (const name of COMPONENTS) symlinkSync(path.join(OSS_ROOT, name), path.join(root, name), "dir");
+  for (const name of COMPONENTS) symlinkSync(path.join(COMPONENT_ROOT, name), path.join(root, name), "dir");
 }
 
 function fakeWorkspace({ program = readJson("../examples/launch-readiness/status-artifact-fixed.json"), version = null } = {}) {
   const root = temporaryRoot();
-  const versions = Object.fromEntries(COMPONENTS.map((name) => [name, version ?? readJson(`../../${name}/package.json`).version]));
+  const versions = Object.fromEntries(COMPONENTS.map((name) => [name, version ?? JSON.parse(readFileSync(path.join(COMPONENT_ROOT, name, "package.json"), "utf8")).version]));
   mkdirSync(path.join(root, "capture-truth", "src"), { recursive: true });
   mkdirSync(path.join(root, "timeline-truth", "src"), { recursive: true });
   mkdirSync(path.join(root, "program-truth", "examples"), { recursive: true });
@@ -352,7 +353,7 @@ test("optional sibling mode uses the checked-in projection without mutating demo
 });
 
 test("required mode uses the live sibling checkouts and preserves Program Truth v2", async (context) => {
-  const componentRoot = process.env.TRUTH_SUITE_COMPONENT_ROOT ?? OSS_ROOT;
+  const componentRoot = COMPONENT_ROOT;
   const liveCheck = verifySuiteLock({ componentRoot, verifyCheckouts: true, verifyContracts: true });
   if (!liveCheck.ok) {
     if (process.env.TRUTH_SUITE_COMPONENT_ROOT) assert.fail(`configured sibling checkouts are not suite-lock exact: ${liveCheck.failures.join("; ")}`);
@@ -406,7 +407,7 @@ test("optional mode uses a fixture only when all sibling repositories are absent
 
 test("optional mode fails clearly for partial sibling presence", async () => {
   const root = temporaryRoot();
-  symlinkSync(path.join(OSS_ROOT, "capture-truth"), path.join(root, "capture-truth"), "dir");
+  symlinkSync(path.join(COMPONENT_ROOT, "capture-truth"), path.join(root, "capture-truth"), "dir");
   await withSiblingEnvironment(root, () => assert.rejects(
     () => loadSiblings(),
     /Truth Suite siblings unavailable or incompatible in optional mode[\s\S]*timeline-truth/
