@@ -1,6 +1,8 @@
-# Migration guide — 0.2.x to 0.3.0
+# Migration guide — legacy 0.2.x through the 0.4.1 current v2 set
 
-0.3.0 is a breaking reset. This guide maps the legacy input and output to the
+0.3.0 was a breaking reset. The published 0.4.0 package is the old-generation
+exact-lock line; the corrected complete v2 set is 0.4.1 and is not
+published yet. This guide maps the legacy input and output to the
 canonical contract. The engine also accepts the legacy forms with deprecation
 findings, so existing artifacts keep working while migrating.
 
@@ -101,7 +103,7 @@ The canonical schemas ship in the `truth-tools-contracts` package and live in
 `packages/contracts/schemas/`. Validate against `status-artifact.schema.json`
 for input and `truth-review.schema.json` for output. `npm run
 contracts:verify` enforces conformance in CI.
-# Migration to 0.4.0
+# Migration to the current v2 contract (Truth Tools 0.4.1 release candidate)
 
 StatusArtifact v2 requires `schema_version: "2.0.0"` and a non-empty
 `health_assessment` containing `state`, `owner`, `rationale`, and canonical
@@ -111,3 +113,10 @@ findings.
 
 SourceRef `text` is no longer canonical. Legacy input is stripped and emits
 `deprecated_source_ref_text`; it is never copied into notes or reports.
+
+## Exact-lock requirement
+
+Once published, integrations must resolve the exact `0.4.1` package/tag and the
+matching complete v2 Truth Suite lock. Do not
+mix the published 0.4.0 old-generation lock with current sibling components,
+and do not use a floating version when reproducing a release review.

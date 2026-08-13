@@ -2,7 +2,10 @@
 
 ## Supported versions
 
-Only the current release line is supported. The supported version is **0.4.0**.
+Only the current published release line is supported. **0.4.0** is the
+published old-generation line. Truth Tools **0.4.1** has a finalized exact
+component lock but is not published yet and is not a supported install target
+until its package release gates and trusted publication complete.
 
 ## Reporting a vulnerability
 
@@ -27,6 +30,11 @@ are handled under the trust boundary documented in `README.md` and
 - **Raw source bodies are rejected by design.** Sources carry metadata only.
   Do not paste Jira, Confluence, meeting-note, or customer content into
   artifacts, issues, or reports.
+- **Schema validation is not sanitization.** JSON Schema does not by itself
+  inspect recursively nested metadata, credential-bearing URL components,
+  cycles, or resource bounds. Run the runtime normalizer/review at the trust
+  boundary and use its sanitized output; do not transport a body because a
+  schema-only check passed or because `raw_included` is true.
 - **Claim text is exported verbatim.** Never place credentials or
   confidential source bodies in `text` fields; the report reprints them.
 - **Health is reported, not proven.** A HealthAssessment is required, but its

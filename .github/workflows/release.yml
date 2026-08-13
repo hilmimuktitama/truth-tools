@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Exact release tag to publish (for example, v0.3.1)
+        description: Exact release tag to publish (for example, v0.4.1)
         required: true
         type: string
 
@@ -74,7 +74,7 @@ jobs:
           test "$(npm --version)" = "12.0.2"
       - run: npm ci
       - name: Verify suite lock and checkout exact refs
-        run: node scripts/suite-lock-verify.js --component-root "$TRUTH_SUITE_COMPONENT_ROOT" --verify-checkouts
+        run: node scripts/suite-lock-verify.js --component-root "$TRUTH_SUITE_COMPONENT_ROOT" --verify-checkouts --verify-contracts
       - run: npm audit --audit-level=high
       - run: npm test
       - run: npm run check

@@ -61,7 +61,7 @@ export function reviewTruth(input = {}) {
 
   // Program health and contradiction checks consider only active claims;
   // superseded and historical claims are reported but never judged.
-  const activeClaims = claims.filter((claim) => claim.state === "active");
+  const activeClaims = claims.filter(isActiveClaim);
 
   const facts = claims.filter((claim) => claim.kind === "fact");
   const blockers = claims.filter((claim) => claim.kind === "blocker");
@@ -112,6 +112,19 @@ export function reviewTruth(input = {}) {
       deprecations
     },
      recommended_actions: recommendedActions
+  };
+}
+
+export function assessProgramArtifact(artifact) {
+  const review = reviewTruth(artifact);
+  return {
+    result: review.artifact_quality === "fail" || review.program_health === "blocked" ? "blocked"
+      : review.artifact_quality === "pass" && review.health_consistency === "consistent" ? "pass"
+        : "needs_review",
+    artifact_quality: review.artifact_quality,
+    program_health: review.program_health,
+    health_consistency: review.health_consistency,
+    review
   };
 }
 
@@ -246,6 +259,9 @@ export function determineProgramHealth(activeClaims, reportedProgramHealth) {
 }
 
 export function determineHealthResolution(activeClaims, reportedProgramHealth, issues) {
+  // This function receives the active slice deliberately. Lifecycle records
+  // remain visible in findings, but historical and superseded claims never
+  // create health support or contradiction signals.
   const hasFact = activeClaims.some((claim) => claim.kind === "fact");
   const hasBlocker = activeClaims.some((claim) => claim.kind === "blocker");
   const hasRiskSignal = activeClaims.some((claim) => claim.kind === "risk" || claim.kind === "unknown");
@@ -292,6 +308,16 @@ export function determineHealthResolution(activeClaims, reportedProgramHealth, i
         "Reported at-risk health has no active blocker, risk, or unknown claim; final health remains at_risk."
       )
     );
+  } else if (reportedProgramHealth === "on_track" && !hasFact) {
+    healthConsistency = "unsupported";
+    issues.push(
+      issue(
+        "on_track_health_without_supporting_fact",
+        "review",
+        "health_assessment.state",
+        "Reported on-track health has no active supporting fact claim; final health remains unknown."
+      )
+    );
   }
 
   const programHealth = claimHealthFloor === "blocked"
@@ -308,6 +334,10 @@ export function determineHealthResolution(activeClaims, reportedProgramHealth, i
     programHealth,
     healthConsistency
   };
+}
+
+function isActiveClaim(claim) {
+  return claim.state === "active";
 }
 
 function normalizeArtifactVersion(input, issues, deprecations) {

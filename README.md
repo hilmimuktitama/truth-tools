@@ -2,8 +2,10 @@
 
 [![CI](https://github.com/hilmimuktitama/truth-tools/actions/workflows/ci.yml/badge.svg)](https://github.com/hilmimuktitama/truth-tools/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-> **Release status:** `0.4.0` is published from the exact version tag through
-> the trusted release workflow. See GitHub Releases and npm for the latest release.
+> **Release status:** Truth Suite components are locked to their exact released
+> commits for Truth Tools `0.4.1`. Truth Tools `0.4.1` itself is not published
+> yet; do not describe the package as available until its tag, CI gates, and
+> trusted publication are complete.
 
 Truth Tools is a **deterministic evidence gate** for project-status
 artifacts. It checks the structure of a supplied status report — every claim
@@ -13,10 +15,14 @@ unknowns must stay explicit — and returns two independent verdicts:
 
 - **`artifact_quality`**: `pass` | `needs_review` | `fail` — is the evidence
   structure of this artifact sound?
-- **`program_health`**: `on_track` | `at_risk` | `blocked` | `unknown` — what
-  do the claims say about the program?
+- **`program_health`**: `on_track` | `at_risk` | `blocked` | `unknown` — the
+  deterministic resolution of supplied reported health and the active-claim
+  health floor. It is not an independent assessment of the program.
 
-Truth Tools is an evidence-first technical-program reliability toolkit combining provenance-preserving evidence intake, defensible timeline compilation, agent-guided status synthesis, and deterministic pre-publication review.
+Truth Tools is the deterministic review boundary in an evidence-first
+technical-program reliability toolkit. Sibling components may provide evidence
+intake, timeline compilation, or status synthesis; this package reviews their
+metadata-only output and does not own or claim those upstream jobs.
 
 It does **not** read source bodies, fetch URLs, or decide what is true. An
 agent, adapter, or human supplies structured claims and citations; Truth
@@ -42,7 +48,7 @@ different questions. The flagship demo is built on the corrected pair:
 Fixing the evidence does not fix the program. It makes the blocker
 trustworthy.
 
-The demo also runs the real sibling components against the same fixtures when
+The demo can also run the real sibling components against the same fixtures when
 they are available. Set `TRUTH_SUITE_COMPONENT_ROOT` to a directory containing
 `capture-truth/`, `timeline-truth/`, and `program-truth/`; it defaults to the
 parent workspace for the local OSS checkout. Without those repositories the
@@ -79,10 +85,10 @@ See the [portfolio case study](docs/portfolio.md), the
 [product reset](docs/product-reset.md), and the
 [review that drove it](docs/product-review.md).
 
-The package command is:
+After the 0.4.1 release workflow completes, the package command is:
 
 ```bash
- npm exec --yes --package truth-tools@0.4.0 -- \
+ npm exec --yes --package truth-tools@0.4.1 -- \
   truth-tools review --input status.json
 ```
 
@@ -93,16 +99,22 @@ stop conditions, and verification gates are in the
 [Truth Suite release plan](docs/release-plan.md). The operational workflow is
 in [docs/release-process.md](docs/release-process.md).
 
-Maintainers merge the release commit to `main`, wait for CI, tag that exact
-main commit (`v0.4.0`), and create a GitHub Release from the tag. Publishing the
-release starts the trusted `release.published` workflow, which checks out the
-tag, runs the full gates, publishes only the root package with npm provenance,
-and then the maintainer verifies the provenance and published package. Manual
-dispatch requires the exact tag as its `tag` input.
+The published `0.4.0` release followed the old-generation lock. The current
+`0.4.1` release candidate uses the exact component lock finalized above; it is
+not published yet and must not be presented as available. Maintainers must
+merge the release commit to `main`, wait for CI, tag that exact main commit
+(`v0.4.1`), and create a GitHub Release from the tag. Publishing the release starts the
+trusted `release.published` workflow, which checks out the tag, verifies the
+current complete v2 suite against its exact lock, runs the full gates, publishes
+only the root package with npm provenance, and then the maintainer verifies the
+provenance and published package. Manual dispatch requires the exact tag as its
+`tag` input.
 
 ## Input
 
-Truth Tools accepts source **metadata**, not raw Jira or document bodies.
+Truth Tools accepts source **metadata**, not raw Jira or document bodies. It is a
+review/orchestration boundary for already-produced structured artifacts, not a
+source connector, compiler, or multi-step suite workflow.
 `as_of` is required so the same input always produces the same review.
 `observed_at` is when the evidence was observed or snapshotted;
 `source_updated_at` is the last-modified time reported by the source system.
@@ -178,6 +190,13 @@ from the normalized output. Two provenance extensions are accepted:
 The browser demo displays raw-inclusion state and Timeline Truth provenance
 while still stripping actual bodies from the shipped data.
 
+> **Structural-sanitization warning:** JSON Schema describes the portable shape,
+> but it does not by itself prove that recursively nested metadata is safe or
+> that credential-bearing URLs are absent. Run the Truth Tools normalizer/review
+> at the trust boundary and use its sanitized output. Do not treat a schema-only
+> validation pass, a `raw_included` flag, or a content hash as permission to
+> transport a source body.
+
 ### Claim kinds
 
 - `fact`: a reported fact with at least one source reference;
@@ -190,13 +209,15 @@ just because it does not contain the word "risk" or "blocked".
 
 ### Capture Truth CandidateClaim
 
-The shared CandidateClaim contract follows Capture Truth 0.5.0. Candidate
-claims carry enumerable extraction metadata (`classification_method`,
-`derivation_version`, and `source_material`) and use `review_status` values
-`unreviewed`, `approved_for_portable`, or `rejected`. Extraction emits
-`unreviewed` without reviewer metadata; approved or rejected candidates must
-carry nonempty `reviewed_by` and RFC3339 `reviewed_at`. CandidateClaim never
-contains a final `kind`, and SourceRef never contains source text.
+The shared CandidateClaim contract follows Capture Truth 0.5.1. A CandidateClaim
+is an extraction-stage candidate, not a reviewed Claim and not a final program
+status. It carries enumerable extraction metadata
+(`classification_method`, `derivation_version`, and `source_material`) plus a
+non-authoritative `suggested_kind`. `review_status` is explicitly
+`unreviewed`, `approved_for_portable`, or `rejected`: extraction emits
+`unreviewed` without reviewer metadata, while approved or rejected candidates
+must carry nonempty `reviewed_by` and RFC3339 `reviewed_at`. CandidateClaim
+never contains a final `kind`, and SourceRef never contains source text.
 
 ### Contradictions
 
@@ -264,14 +285,14 @@ From a source checkout, configure the stdio server directly:
 }
 ```
 
-Use the package binary:
+After 0.4.1 is published, use the package binary:
 
 ```json
 {
   "mcpServers": {
     "truth-tools": {
       "command": "npx",
-      "args": ["-y", "--package=truth-tools@0.4.0", "truth-tools-mcp"]
+      "args": ["-y", "--package=truth-tools@0.4.1", "truth-tools-mcp"]
     }
   }
 }
@@ -338,7 +359,7 @@ npm run demo:build        # rebuild apps/demo/dist from sources
 npm run demo:dev          # static demo server on 127.0.0.1:4173
 npm run eval              # evaluation harness (hand-written cases)
 npm run eval:synthetic    # + 200 seeded synthetic cases
-node scripts/demo.js --write   # regenerate reports, drift, and demo data
+  npm run demo:write             # regenerate reports, drift, and demo data
 npm pack --dry-run        # inspect the package allowlist
 ```
 

@@ -8,6 +8,19 @@ aims to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Finalized the Truth Suite lock at `capture-truth@0.5.1` (commit
+  `c6ec36229d545b1ccb82fe9276971f0d36354d0b`), `timeline-truth@0.4.0`
+  (commit `df8dde4fbb25b9347f1a08aab00e5850a74a7e3d`), and
+  `program-truth@0.3.1` (commit `526c434b0379257748a2dd7ed24b76b72036ceca`).
+- Bumped the package and private contracts workspace to `0.4.1`. Truth Tools
+  `0.4.1` is prepared but not published yet.
+
+- Corrected the release documentation to distinguish the published 0.4.0
+  old-generation exact lock from the finalized 0.4.1 current complete v2 set;
+  added the post-corrected-release exact-lock requirement.
+- Clarified that Truth Tools reviews and orchestrates metadata-only outputs; it
+  does not own source intake, timeline compilation, program synthesis, or
+  multi-step suite choreography.
 - Finalized the shared Capture Truth 0.5 Source, SourceRef, and CandidateClaim
   contracts. CandidateClaim now supports `unreviewed`,
   `approved_for_portable`, and `rejected` states with conditional reviewer
@@ -15,7 +28,7 @@ aims to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Kept SourceRef locator-only: it has no verbatim `text` field, and Source
   metadata remains subject to recursive raw-body privacy rejection.
 
-## [0.4.0] — 2026-08-13
+## [0.4.0] — 2026-08-13 (published old-generation exact-lock release)
 
 ### Added
 
@@ -23,6 +36,9 @@ aims to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Deterministic reported health, claim floor, final health, and consistency output.
 - Recursive metadata privacy bounds and canonical SourceRef locators without verbatim text.
 - Public-safe facts-only and blocked demo scenarios plus local-only private-evaluation guidance.
+
+This is the historical published release. The corrected complete v2 set is
+represented by the later 0.4.1 release candidate, which is not published here.
 
 ## [0.3.1] — 2026-08-13
 
@@ -79,9 +95,10 @@ aims to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   provenance metadata from capture components (the capture record held a body
   in its system of record); it is preserved and never treated as a raw body.
   `source_refs[]` accept Timeline Truth provenance passthrough fields
-  (`heading` string, `tableRow` and `line` positive integers, `text` string)
-  without relaxing the required `source_id` + `locator`. Raw bodies
-  (`content`, `body`, `raw`, `payload`, `document`, `data`) still fail.
+  (`heading` string, `tableRow` and `line` positive integers) without
+  relaxing the required `source_id` + `locator`; verbatim `text` is stripped
+  and deprecated. Raw bodies (`content`, `body`, `raw`, `payload`, `document`,
+  `data`) still fail.
 - **Timeline drift.** Optional `timeline` and `baseline_timeline` arrays on
   the status artifact produce a deterministic `timeline_drift` report
   (added / removed / changed / unchanged). Drift is reported, never judged.
@@ -109,7 +126,7 @@ aims to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   browser demo gains a "Component truth" section, and the demo payload embeds
   deterministic, public-safe sibling projections verified by
   `test/demo.test.js`.
-- **Governance.** ADRs 0001-0006, security policy, contribution guide, bug
+- **Governance.** ADRs 0001-0008, security policy, contribution guide, bug
   template, PR template, CODEOWNERS, Pages and trusted-publishing release
   workflows, and package allowlists for both npm packages.
 

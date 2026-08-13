@@ -10,14 +10,21 @@ is `.github/workflows/release.yml`.
 
 ## Versioning
 
-- `0.4.0` is the current patch version and is published from an exact tag.
+- `0.4.0` is the published old-generation patch version from an exact tag.
+- The historical component set is `capture-truth@0.4.1`,
+  `timeline-truth@0.3.1`, and `program-truth@0.2.1`; it is preserved in the
+  staged lock and is not the final target set.
+- The finalized component release set is `capture-truth@0.5.1`,
+  `timeline-truth@0.4.0`, and `program-truth@0.3.1`; these are locked to their
+  exact release commits.
 - The review contract carries its own `schema_version: "2.0.0"` inside
   `TruthReview`; it is independent of the npm version and only bumps when the
   canonical schemas change incompatibly.
-- The coordinated release set is `capture-truth@0.4.1` (evidence-pack intake
-  with normalized, deterministic capture output; not a truth linter),
-  `timeline-truth@0.3.1`,
-  `program-truth@0.2.1`, and `truth-tools@0.4.0`. See the
+- The historical coordinated release set is `capture-truth@0.4.1`,
+  `timeline-truth@0.3.1`, `program-truth@0.2.1`, and
+  `truth-tools@0.4.0`. The finalized component release set is
+  `capture-truth@0.5.1`, `timeline-truth@0.4.0`, and `program-truth@0.3.1`;
+  see the
   [suite release plan](release-plan.md).
 
 ## Before a release (maintainer)
@@ -51,7 +58,10 @@ is `.github/workflows/release.yml`.
    must contain only `bin/`, `src/`, `packages/`, `scripts/`, `examples/`,
    `docs/`, `apps/`, `evaluation/`, `README.md`, `LICENSE`, `CHANGELOG.md` —
    and no capture/timeline binaries, secrets, or node_modules.
-6. Merge the release commit to `main`, wait for CI to pass, and create the
+6. For a corrected release after the published old-generation line, first
+   verify that the exact suite lock represents the complete current v2 set; do
+   not resume from the 0.4.0 old-generation lock. Merge the release commit to
+   `main`, wait for CI to pass, and create the
    exact tag `v<package-version>` on that main commit. Tags must match
    `^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$`. Create the GitHub Release from
    that tag; publishing the release starts the `release.published` workflow.

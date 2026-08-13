@@ -1,6 +1,6 @@
 {
   "name": "truth-tools-contracts",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "private": true,
   "description": "Canonical JSON Schema Draft 2020-12 contracts for Truth Tools: Source, SourceRef, CandidateClaim, Claim, TimelineItem, StatusArtifact, TruthReview.",
   "license": "MIT",

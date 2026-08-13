@@ -41,7 +41,7 @@ The **facts-only scenario** (`status-artifact-facts-only.json`) contains the sin
 npm run demo          # verify every generated file against the engine (read-only)
 npm run demo:build    # rebuild apps/demo/dist from apps/demo sources
 npm run demo:dev      # serve the static browser demo at http://127.0.0.1:4173/
-node scripts/demo.js --write   # regenerate reports, timeline drift, and demo data
+npm run demo:write             # regenerate reports, timeline drift, and demo data
 ```
 
-All files here are generated or verified by `scripts/demo.js`; if the engine or a fixture changes, `npm run demo` fails until `node scripts/demo.js --write` regenerates the checked-in outputs.
+All files here are generated or verified by `scripts/demo.js`; if the engine or a fixture changes, `npm run demo` fails until `npm run demo:write` regenerates the checked-in outputs.

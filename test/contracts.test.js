@@ -243,7 +243,7 @@ test("CandidateClaim matches Capture Truth 0.5 review semantics", () => {
     text: "Candidate text.",
     classification_method: "keyword",
     source_refs: [{ source_id: "s1", locator: "source:s1" }],
-    derivation_version: "0.5.0",
+    derivation_version: "0.5.1",
     source_material: "metadata"
   };
 

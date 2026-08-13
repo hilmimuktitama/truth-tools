@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
-import { readFileSync, statSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
 
 import { demoPayload, findRawBodies, loadSiblings, mapProgramArtifact, readProgramArtifact, runDemo, siblingSections, stripRawBodies } from "../scripts/demo.js";
+import { readSuiteLock, verifySuiteLock } from "../scripts/suite-lock-verify.js";
 import { reviewTruth } from "../src/review.js";
 import { timelineDiff } from "../src/timeline-diff.js";
 import { freshnessRows } from "../apps/demo/app.js";
@@ -11,8 +14,50 @@ function readJson(relativePath) {
   return JSON.parse(readFileSync(new URL(relativePath, import.meta.url), "utf8"));
 }
 
+const OSS_ROOT = path.resolve(new URL("../../", import.meta.url).pathname);
+const COMPONENT_ROOT = process.env.TRUTH_SUITE_COMPONENT_ROOT ?? OSS_ROOT;
+const COMPONENTS = ["capture-truth", "timeline-truth", "program-truth"];
+
+function withSiblingEnvironment(root, callback, { required = false } = {}) {
+  const names = ["TRUTH_SUITE_COMPONENT_ROOT", "TRUTH_SUITE_REQUIRE_SIBLINGS"];
+  const previous = Object.fromEntries(names.map((name) => [name, process.env[name]]));
+  process.env.TRUTH_SUITE_COMPONENT_ROOT = root;
+  if (required) process.env.TRUTH_SUITE_REQUIRE_SIBLINGS = "1";
+  else delete process.env.TRUTH_SUITE_REQUIRE_SIBLINGS;
+  return Promise.resolve(callback()).finally(() => {
+    for (const name of names) {
+      if (previous[name] === undefined) delete process.env[name];
+      else process.env[name] = previous[name];
+    }
+  });
+}
+
+function temporaryRoot(prefix = "truth-tools-demo-") {
+  return mkdtempSync(path.join(os.tmpdir(), prefix));
+}
+
+function linkCurrentSiblings(root) {
+  for (const name of COMPONENTS) symlinkSync(path.join(COMPONENT_ROOT, name), path.join(root, name), "dir");
+}
+
+function fakeWorkspace({ program = readJson("../examples/launch-readiness/status-artifact-fixed.json"), version = null } = {}) {
+  const root = temporaryRoot();
+  const versions = Object.fromEntries(COMPONENTS.map((name) => [name, version ?? JSON.parse(readFileSync(path.join(COMPONENT_ROOT, name, "package.json"), "utf8")).version]));
+  mkdirSync(path.join(root, "capture-truth", "src"), { recursive: true });
+  mkdirSync(path.join(root, "timeline-truth", "src"), { recursive: true });
+  mkdirSync(path.join(root, "program-truth", "examples"), { recursive: true });
+  writeFileSync(path.join(root, "capture-truth", "package.json"), JSON.stringify({ version: versions["capture-truth"] }));
+  writeFileSync(path.join(root, "timeline-truth", "package.json"), JSON.stringify({ version: versions["timeline-truth"] }));
+  writeFileSync(path.join(root, "program-truth", "package.json"), JSON.stringify({ version: versions["program-truth"] }));
+  writeFileSync(path.join(root, "capture-truth", "src", "capture.js"), "export const notCapture = true;\n");
+  writeFileSync(path.join(root, "timeline-truth", "src", "timeline.js"), "export function createTimeline() {}\n");
+  writeFileSync(path.join(root, "timeline-truth", "src", "diff.js"), "export function diffTimelines() {}\n");
+  writeFileSync(path.join(root, "program-truth", "examples", "status-artifact.json"), JSON.stringify(program));
+  return root;
+}
+
 test("demo verification passes for the checked-in fixtures", async () => {
-  const result = await runDemo({ write: false, verbose: false });
+  const result = await withSiblingEnvironment(temporaryRoot(), () => runDemo({ write: false, verbose: false }));
   assert.equal(result.ok, true, result.steps.filter((step) => !step.ok).map((step) => step.name).join(", "));
 });
 
@@ -62,7 +107,7 @@ test("the fixed fixture is pass quality and blocked health", () => {
 test("the facts-only demo scenario has exact safe output and unknown health", async () => {
   const factsOnly = readJson("../examples/launch-readiness/status-artifact-facts-only.json");
   const review = reviewTruth(factsOnly);
-  const payload = await demoPayload();
+  const payload = await withSiblingEnvironment(temporaryRoot(), () => demoPayload());
 
   assert.equal(factsOnly.kind, "status_artifact");
   assert.equal(factsOnly.schema_version, "2.0.0");
@@ -169,6 +214,19 @@ test("release workflow uses a published release and validates the exact tag", ()
   assert.match(contents, /steps\.suite-lock\.outputs\.timeline_truth_ref/);
   assert.match(contents, /steps\.suite-lock\.outputs\.program_truth_ref/);
   assert.match(contents, /--github-output --release/);
+  assert.match(contents, /- run: npm run demo\n/);
+  assert.equal(contents.includes("npm run demo:write"), false);
+});
+
+test("workflow YAML command steps have valid indentation and CI is verify-only", () => {
+  for (const workflow of ["ci.yml", "release.yml"]) {
+    const contents = readFileSync(new URL(`../.github/workflows/${workflow}`, import.meta.url), "utf8");
+    assert.equal(contents.includes("npm run demo:write"), false, `${workflow} must not write demo fixtures`);
+    assert.match(contents, /^name: \S+/m);
+    assert.match(contents, /^jobs:/m);
+    const malformedSteps = contents.split("\n").filter((line) => /^(\s+)- (?:run|name|uses):/.test(line) && line.match(/^\s*/)[0].length !== 6);
+    assert.deepEqual(malformedSteps, [], `${workflow} has malformed step indentation`);
+  }
 });
 
 test("dist files match the demo sources byte for byte", () => {
@@ -180,7 +238,7 @@ test("dist files match the demo sources byte for byte", () => {
 });
 
 test("sibling components wire in real cross-repo calls", async () => {
-  const siblings = await loadSiblings();
+  const siblings = await withSiblingEnvironment(temporaryRoot(), () => loadSiblings());
   if (siblings.mode !== "live") {
     assert.equal(siblings.sibling.capture.kind, "capture_truth_evidence_pack");
     return;
@@ -250,7 +308,7 @@ test("the embedded sibling sections mirror live sibling output", async () => {
   const { TRUTH_DEMO } = await import("../apps/demo/data.js");
   const { siblingSections } = await import("../scripts/demo.js");
 
-  const sections = JSON.parse(JSON.stringify(await siblingSections()));
+  const sections = JSON.parse(JSON.stringify(await withSiblingEnvironment(temporaryRoot(), () => siblingSections())));
   assert.equal(sections.capture.summary.source_count, 4);
   assert.equal(sections.timeline.items.length, 5);
   assert.equal(sections.diff.summary.added, 1);
@@ -292,4 +350,71 @@ test("optional sibling mode uses the checked-in projection without mutating demo
     if (previousRequired === undefined) delete process.env.TRUTH_SUITE_REQUIRE_SIBLINGS;
     else process.env.TRUTH_SUITE_REQUIRE_SIBLINGS = previousRequired;
   }
+});
+
+test("required mode uses the live sibling checkouts and preserves Program Truth v2", async (context) => {
+  const componentRoot = COMPONENT_ROOT;
+  const liveCheck = verifySuiteLock({ componentRoot, verifyCheckouts: true, verifyContracts: true });
+  if (!liveCheck.ok) {
+    if (process.env.TRUTH_SUITE_COMPONENT_ROOT) assert.fail(`configured sibling checkouts are not suite-lock exact: ${liveCheck.failures.join("; ")}`);
+    return context.skip(`current sibling checkouts are not suite-lock exact: ${liveCheck.failures.join("; ")}`);
+  }
+  await withSiblingEnvironment(componentRoot, async () => {
+    const siblings = await loadSiblings();
+    assert.equal(siblings.mode, "live");
+    assert.deepEqual(siblings.program, JSON.parse(readFileSync(path.join(componentRoot, "program-truth", "examples", "status-artifact.json"), "utf8")));
+    const sections = await siblingSections();
+    assert.deepEqual(sections.program.artifact, siblings.program);
+    assert.equal(sections.program.review.program_health, "blocked");
+  }, { required: true });
+});
+
+test("required mode rejects a Program Truth v1 example instead of substituting a fixture", async () => {
+  const v1 = { kind: "status_artifact", schema_version: "1.0.0", claims: [] };
+  const root = fakeWorkspace({ program: v1 });
+  await withSiblingEnvironment(root, () => assert.rejects(
+    () => loadSiblings(),
+    /program-truth: expected examples\/status-artifact\.json to be a v2 status artifact/
+  ), { required: true });
+});
+
+test("required mode reports missing Capture Truth function", async () => {
+  const root = fakeWorkspace();
+  writeFileSync(path.join(root, "capture-truth", "src", "capture.js"), "export const incompatible = true;\n");
+  await withSiblingEnvironment(root, () => assert.rejects(
+    () => loadSiblings(),
+    /capture-truth: missing public function createEvidencePack/
+  ), { required: true });
+});
+
+test("required mode reports package versions that do not match suite-lock", async () => {
+  const root = fakeWorkspace();
+  writeFileSync(path.join(root, "timeline-truth", "package.json"), JSON.stringify({ version: "9.9.9" }));
+  await withSiblingEnvironment(root, () => assert.rejects(
+    () => loadSiblings(),
+    /timeline-truth: package version 9\.9\.9 does not match suite-lock 0\.4\.0/
+  ), { required: true });
+});
+
+test("optional mode uses a fixture only when all sibling repositories are absent", async () => {
+  const root = temporaryRoot();
+  await withSiblingEnvironment(root, async () => {
+    const siblings = await loadSiblings();
+    assert.equal(siblings.mode, "fixture");
+    assert.equal(siblings.reason, "using checked-in fixture projection");
+  });
+});
+
+test("optional mode fails clearly for partial sibling presence", async () => {
+  const root = temporaryRoot();
+  symlinkSync(path.join(COMPONENT_ROOT, "capture-truth"), path.join(root, "capture-truth"), "dir");
+  await withSiblingEnvironment(root, () => assert.rejects(
+    () => loadSiblings(),
+    /Truth Suite siblings unavailable or incompatible in optional mode[\s\S]*timeline-truth/
+  ));
+});
+
+test("suite-lock verification remains independent of demo sibling loading", () => {
+  const result = verifySuiteLock({ lock: readSuiteLock() });
+  assert.equal(result.ok, true, result.failures.join("\n"));
 });

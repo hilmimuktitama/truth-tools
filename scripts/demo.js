@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -9,6 +9,7 @@ import { renderReviewMarkdown } from "../src/report.js";
 import { reviewTruth } from "../src/review.js";
 import { renderTimelineDriftMarkdown, timelineDiff } from "../src/timeline-diff.js";
 import { buildDemo, verifyDist } from "./demo-build.js";
+import { readSuiteLock, verifySuiteLock } from "./suite-lock-verify.js";
 
 // The payload version always mirrors package.json so the demo data never
 // drifts from the package it ships with.
@@ -102,6 +103,34 @@ function readJsonFile(url) {
   }
 }
 
+function siblingPresence(root) {
+  return Object.fromEntries(["capture-truth", "timeline-truth", "program-truth"]
+    .map((name) => [name, existsSync(path.join(root, name))]));
+}
+
+function fixtureSibling() {
+  return import("../apps/demo/data.js").then(({ TRUTH_DEMO }) => {
+    if (!TRUTH_DEMO.sibling) throw new Error("checked-in sibling fixture projection is missing");
+    return { mode: "fixture", sibling: structuredClone(TRUTH_DEMO.sibling), reason: "using checked-in fixture projection" };
+  });
+}
+
+function packageVersionFailures(root, lock) {
+  const failures = [];
+  for (const name of ["capture-truth", "timeline-truth", "program-truth"]) {
+    try {
+      const packageJson = JSON.parse(readFileSync(path.join(root, name, "package.json"), "utf8"));
+      const expected = lock.components[name].version;
+      if (packageJson.version !== expected) {
+        failures.push(`${name}: package version ${packageJson.version ?? "missing"} does not match suite-lock ${expected}`);
+      }
+    } catch (error) {
+      failures.push(`${name}: package contract unavailable (${error.message})`);
+    }
+  }
+  return failures;
+}
+
 export function requireSiblings() {
   return process.env.TRUTH_SUITE_REQUIRE_SIBLINGS === "1";
 }
@@ -136,28 +165,61 @@ function canonicalizeProgramArtifact(program) {
 // Load real sibling components, or the checked-in public-safe projection when
 // this package is used without the sibling repositories.
 export async function loadSiblings() {
+  const root = resolveComponentRoot();
+  const presence = siblingPresence(root);
+
+  // Fixtures are an offline convenience only when no sibling checkout exists.
+  // Once a checkout is present, silently replacing it would hide a broken or
+  // partially provisioned Truth Suite.
+  if (!requireSiblings() && Object.values(presence).every((present) => !present)) return fixtureSibling();
+
+  const failures = [];
+  let lock;
   try {
-    const urls = siblingUrls();
-    const [capture, timelineMod, diffMod] = await Promise.all([
-      import(urls.capture.href),
-      import(urls.timeline.href),
-      import(urls.diff.href)
-    ]);
-    const program = readJsonFile(urls.program);
-    if (typeof capture.createEvidencePack !== "function" || typeof timelineMod.createTimeline !== "function" ||
-        typeof diffMod.diffTimelines !== "function" || !program) throw new Error("incompatible Truth Suite sibling");
-    if (program.schema_version === "1.0.0") {
-      const { TRUTH_DEMO } = await import("../apps/demo/data.js");
-      if (!TRUTH_DEMO.sibling) throw new Error("checked-in sibling fixture projection is missing");
-      return { mode: "fixture", sibling: structuredClone(TRUTH_DEMO.sibling), reason: "Program Truth v2 example unavailable; using checked-in canonical fixture projection" };
-    }
-    return { mode: "live", capture, timelineMod, diffMod, program };
+    lock = readSuiteLock();
+    const lockResult = verifySuiteLock({
+      lock,
+      componentRoot: root,
+      verifyCheckouts: true,
+      verifyContracts: true
+    });
+    failures.push(...lockResult.failures);
+    failures.push(...packageVersionFailures(root, lock));
   } catch (error) {
-    if (requireSiblings()) throw new Error(`Truth Suite siblings unavailable under ${resolveComponentRoot()}: ${error.message}`);
-    const { TRUTH_DEMO } = await import("../apps/demo/data.js");
-    if (!TRUTH_DEMO.sibling) throw new Error("checked-in sibling fixture projection is missing");
-    return { mode: "fixture", sibling: structuredClone(TRUTH_DEMO.sibling), reason: "live Truth Suite siblings unavailable; using checked-in fixture projection" };
+    failures.push(`suite-lock verification unavailable (${error.message})`);
   }
+
+  const urls = siblingUrls(root);
+  let capture;
+  let timelineMod;
+  let diffMod;
+  try { capture = await import(urls.capture.href); }
+  catch (error) { failures.push(`capture-truth: public module unavailable (${error.message})`); }
+  try { timelineMod = await import(urls.timeline.href); }
+  catch (error) { failures.push(`timeline-truth: public module unavailable (${error.message})`); }
+  try { diffMod = await import(urls.diff.href); }
+  catch (error) { failures.push(`timeline-truth diff module unavailable (${error.message})`); }
+
+  if (typeof capture?.createEvidencePack !== "function") failures.push("capture-truth: missing public function createEvidencePack");
+  if (typeof timelineMod?.createTimeline !== "function") failures.push("timeline-truth: missing public function createTimeline");
+  if (typeof diffMod?.diffTimelines !== "function") failures.push("timeline-truth: missing public function diffTimelines");
+
+  let program;
+  try {
+    const raw = readFileSync(urls.program, "utf8");
+    program = JSON.parse(raw);
+  } catch (error) {
+    failures.push(`program-truth: malformed or unavailable v2 example (${error.message})`);
+  }
+  if (program && (program.kind !== "status_artifact" || program.schema_version !== "2.0.0")) {
+    failures.push(`program-truth: expected examples/status-artifact.json to be a v2 status artifact, got ${program.schema_version ?? "unknown"}`);
+  }
+
+  if (failures.length > 0) {
+    const mode = requireSiblings() ? "required" : "optional";
+    throw new Error(`Truth Suite siblings unavailable or incompatible in ${mode} mode under ${root}:\n  ${failures.join("\n  ")}`);
+  }
+  return { mode: "live", capture, timelineMod, diffMod, program };
 }
 
 function candidateClaims(result) {

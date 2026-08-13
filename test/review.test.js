@@ -46,6 +46,56 @@ test("returns pass quality and on-track health for a canonical artifact", () => 
   assert.equal(review.findings.deprecations.length, 0);
 });
 
+test("on_track is unsupported when there is no active fact", () => {
+  const input = baseInput();
+  input.claims[0].state = "historical";
+  const review = reviewTruth(input);
+
+  assert.equal(review.program_health, "unknown");
+  assert.equal(review.health_consistency, "unsupported");
+  assert.equal(review.artifact_quality, "needs_review");
+  assert.equal(review.findings.issues.some((item) => item.type === "on_track_health_without_supporting_fact"), true);
+  assert.deepEqual(review.recommended_actions.filter((item) => item.claim_id), []);
+});
+
+test("health signals use only active claims and preserve exact issue contracts", () => {
+  const cases = [
+    { name: "active fact", claim: { kind: "fact", state: "active" }, state: "on_track", consistency: "consistent", floor: "none", health: "on_track", issue: null },
+    { name: "no claims consistency", claim: null, state: "on_track", consistency: "unsupported", floor: "none", health: "unknown", issue: ["on_track_health_without_supporting_fact", "health_assessment.state", "Reported on-track health has no active supporting fact claim; final health remains unknown."] },
+    { name: "historical fact", claim: { kind: "fact", state: "historical" }, state: "on_track", consistency: "unsupported", floor: "none", health: "unknown", issue: ["on_track_health_without_supporting_fact", "health_assessment.state", "Reported on-track health has no active supporting fact claim; final health remains unknown."] },
+    { name: "superseded fact", claim: { kind: "fact", state: "superseded" }, state: "on_track", consistency: "unsupported", floor: "none", health: "unknown", issue: ["on_track_health_without_supporting_fact", "health_assessment.state", "Reported on-track health has no active supporting fact claim; final health remains unknown."] },
+    { name: "unknown no signal", claim: { kind: "fact", state: "active" }, state: "unknown", consistency: "consistent", floor: "none", health: "unknown", issue: null }
+  ];
+  for (const scenario of cases) {
+    const input = baseInput();
+    input.health_assessment.state = scenario.state;
+    input.claims = scenario.claim ? [{ ...input.claims[0], ...scenario.claim }] : [];
+    const review = reviewTruth(input);
+    assert.equal(review.claim_health_floor, scenario.floor, scenario.name);
+    assert.equal(review.program_health, scenario.health, scenario.name);
+    assert.equal(review.health_consistency, scenario.consistency, scenario.name);
+    if (scenario.issue) {
+      const finding = review.findings.issues.find((item) => item.type === scenario.issue[0]);
+      assert.ok(finding, scenario.name);
+      assert.deepEqual([finding.type, finding.location, finding.message], scenario.issue, scenario.name);
+    }
+  }
+});
+
+test("blocker and risk health behavior remains unchanged", () => {
+  const blocker = baseInput();
+  blocker.health_assessment.state = "blocked";
+  blocker.claims.push({ id: "blocker", kind: "blocker", text: "Release is blocked.", owner: "Team", due_at: "2026-08-14", source_refs: [{ source_id: "decision", locator: "source:decision" }] });
+  const blockerReview = reviewTruth(blocker);
+  assert.deepEqual([blockerReview.program_health, blockerReview.claim_health_floor, blockerReview.health_consistency, blockerReview.findings.issues.length], ["blocked", "blocked", "consistent", 0]);
+
+  const risk = baseInput();
+  risk.health_assessment.state = "at_risk";
+  risk.claims[0] = { ...risk.claims[0], kind: "risk", owner: "Team", mitigation: "Track risk." };
+  const riskReview = reviewTruth(risk);
+  assert.deepEqual([riskReview.program_health, riskReview.claim_health_floor, riskReview.health_consistency], ["at_risk", "at_risk", "consistent"]);
+});
+
 test("a blocker claim makes program_health blocked while quality stays pass when health agrees", () => {
   const input = baseInput();
   input.health_assessment.state = "blocked";

@@ -3,8 +3,8 @@
   "schema_version": "1.0.0",
   "suite": "truth-suite",
   "components": {
-    "capture-truth": { "repository": "hilmimuktitama/capture-truth", "ref": "931f5b4600093d4b947f6aaa950917d8b5330635", "version": "0.4.1" },
-    "timeline-truth": { "repository": "hilmimuktitama/timeline-truth", "ref": "2b08ea75c930b02112a12f17a4de152898d7b5a7", "version": "0.3.1" },
-    "program-truth": { "repository": "hilmimuktitama/program-truth", "ref": "473466e61736eb833f8417a84f94779ea5980884", "version": "0.2.1" }
+    "capture-truth": { "repository": "hilmimuktitama/capture-truth", "ref": "c6ec36229d545b1ccb82fe9276971f0d36354d0b", "version": "0.5.1" },
+    "timeline-truth": { "repository": "hilmimuktitama/timeline-truth", "ref": "df8dde4fbb25b9347f1a08aab00e5850a74a7e3d", "version": "0.4.0" },
+    "program-truth": { "repository": "hilmimuktitama/program-truth", "ref": "526c434b0379257748a2dd7ed24b76b72036ceca", "version": "0.3.1" }
   }
 }

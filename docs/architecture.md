@@ -1,6 +1,7 @@
 # Architecture
 
-Truth Tools is the deterministic review and orchestration component in an
+Truth Tools is the deterministic review boundary and metadata-output
+orchestration component in an
 evidence-first technical-program reliability toolkit. Sibling/operator
 components provide provenance-preserving evidence intake, timeline compilation,
 and agent-guided status synthesis; this package validates and reviews their
@@ -107,7 +108,7 @@ metadata only, preserving the raw-source privacy boundary.
 
 `scripts/demo.js` runs the engine over the broken and fixed launch-readiness
 artifacts, regenerates the checked-in reports (`truth-review-*.json/md`,
-`timeline-drift.json/md`, `apps/demo/data.js`) in `--write` mode, and in
+`timeline-drift.json/md`, `apps/demo/data.js`) via `npm run demo:write`, and in
 verify mode fails if any checked-in output differs from what the engine
 produces. `apps/demo/dist` must be byte-identical to `apps/demo` sources
 (`npm run demo:build`). The browser demo is static: no login, no network
@@ -130,9 +131,12 @@ components use the checked-in public-safe sibling projection and the demo
 reports fixture fallback; `TRUTH_SUITE_REQUIRE_SIBLINGS=1` makes that condition
 fatal. The browser demo renders these in a "Component truth" section.
 
-## Boundaries (see ADRs 0001-0006)
+## Boundaries (see ADRs 0001-0008)
 
 - Truth Tools owns contracts, review, demo, and evaluation only.
+- It orchestrates review of sibling metadata projections when explicitly
+  available; it does not own evidence intake, timeline compilation, program
+  reconciliation, or multi-call agent choreography.
 - Capture and timeline tooling stay canonical standalone packages; no public
   capture/timeline binaries ship in this package.
 - Raw source bodies are rejected; sources are metadata only.
