@@ -2,10 +2,9 @@
 
 ## Supported versions
 
-Only the current published release line is supported. **0.4.0** is the
-published old-generation line. Truth Tools **0.4.1** has a finalized exact
-component lock but is not published yet and is not a supported install target
-until its package release gates and trusted publication complete.
+Only the current published release line is supported. Truth Tools **0.4.1** is
+the supported complete-v2 release. **0.4.0** remains the historical published
+old-generation line.
 
 ## Reporting a vulnerability
 

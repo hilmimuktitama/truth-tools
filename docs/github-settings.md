@@ -60,6 +60,5 @@ repository commands.
 
 ## Deleting
 
-The current published package release remains `0.4.0` until the verified
-`0.4.1` release workflow completes; package retirement and deprecation are
-npm-side decisions, not repository settings.
+The current published package release is `0.4.1`; package retirement and
+deprecation are npm-side decisions, not repository settings.

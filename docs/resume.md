@@ -15,10 +15,10 @@ not fix a blocked program. The evaluation harness includes 30 hand-written
 policy cases and a seeded synthetic generator reporting pass rate,
 per-dimension accuracy, and issue precision/recall.
 
-Released the historical `0.4.0` old-generation line through trusted publishing
-with npm provenance and package allowlists. The corrected complete v2 `0.4.1`
-release candidate now has its matching exact suite lock, but Truth Tools itself
-is not yet published; once published, consumers must use the matching exact
-lock rather than resume with the historical `0.4.0` old-generation lock. Do not
-claim adoption, time savings, prevention of real-world failures, or measured
-real-world effectiveness.
+Released the historical `0.4.0` old-generation line and corrected complete-v2
+`0.4.1` line through trusted publishing with npm provenance and package
+allowlists. Coordinated exact cross-repository release locks and live
+integration gates across independently versioned packages. Consumers must use
+the matching exact lock rather than combine current components with the
+historical `0.4.0` lock. Do not claim adoption, time savings, prevention of
+real-world failures, or measured real-world effectiveness.

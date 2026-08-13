@@ -2,10 +2,8 @@
 
 [![CI](https://github.com/hilmimuktitama/truth-tools/actions/workflows/ci.yml/badge.svg)](https://github.com/hilmimuktitama/truth-tools/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-> **Release status:** Truth Suite components are locked to their exact released
-> commits for Truth Tools `0.4.1`. Truth Tools `0.4.1` itself is not published
-> yet; do not describe the package as available until its tag, CI gates, and
-> trusted publication are complete.
+> **Release status:** Truth Tools `0.4.1` is published with npm provenance and
+> locks the complete StatusArtifact v2 component set to exact release commits.
 
 Truth Tools is a **deterministic evidence gate** for project-status
 artifacts. It checks the structure of a supplied status report — every claim
@@ -85,7 +83,7 @@ See the [portfolio case study](docs/portfolio.md), the
 [product reset](docs/product-reset.md), and the
 [review that drove it](docs/product-review.md).
 
-After the 0.4.1 release workflow completes, the package command is:
+The package command is:
 
 ```bash
  npm exec --yes --package truth-tools@0.4.1 -- \
@@ -99,16 +97,11 @@ stop conditions, and verification gates are in the
 [Truth Suite release plan](docs/release-plan.md). The operational workflow is
 in [docs/release-process.md](docs/release-process.md).
 
-The published `0.4.0` release followed the old-generation lock. The current
-`0.4.1` release candidate uses the exact component lock finalized above; it is
-not published yet and must not be presented as available. Maintainers must
-merge the release commit to `main`, wait for CI, tag that exact main commit
-(`v0.4.1`), and create a GitHub Release from the tag. Publishing the release starts the
-trusted `release.published` workflow, which checks out the tag, verifies the
-current complete v2 suite against its exact lock, runs the full gates, publishes
-only the root package with npm provenance, and then the maintainer verifies the
-provenance and published package. Manual dispatch requires the exact tag as its
-`tag` input.
+The published `0.4.0` release followed the old-generation lock. The published
+`0.4.1` release is the first flagship release whose exact lock validates the
+complete StatusArtifact v2 component set. Its trusted workflow checked out the
+immutable tag, verified the exact live siblings, ran the full gates, and
+published only the root package with npm provenance.
 
 ## Input
 
@@ -285,7 +278,7 @@ From a source checkout, configure the stdio server directly:
 }
 ```
 
-After 0.4.1 is published, use the package binary:
+Use the package binary:
 
 ```json
 {
