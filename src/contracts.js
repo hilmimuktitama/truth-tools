@@ -11,6 +11,7 @@ export const CLAIM_STATES = ["active", "superseded", "historical"];
 export const TIMELINE_TYPES = ["task", "milestone"];
 export const DATE_DERIVATIONS = ["explicit", "natural", "none"];
 export const EVIDENCE_GRADES = ["exact", "derived", "fuzzy", "missing"];
+export const CANDIDATE_REVIEW_STATUSES = ["unreviewed", "approved_for_portable", "rejected"];
 
 const ajv = new Ajv2020({ allErrors: true, strict: true, strictRequired: false, allowUnionTypes: true });
 

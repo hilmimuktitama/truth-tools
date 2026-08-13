@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Only the current release line is supported. The supported version is **0.3.1**.
+Only the current release line is supported. The supported version is **0.4.0**.
 
 ## Reporting a vulnerability
 
@@ -29,6 +29,8 @@ are handled under the trust boundary documented in `README.md` and
   artifacts, issues, or reports.
 - **Claim text is exported verbatim.** Never place credentials or
   confidential source bodies in `text` fields; the report reprints them.
+- **Health is reported, not proven.** A HealthAssessment is required, but its
+  state is supplied evidence, not an independent assertion by Truth Tools.
 - **Markdown output is for humans.** The JSON review is the machine-consumable
   form; the demo renders all dynamic text with `textContent`, never HTML.
 

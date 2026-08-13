@@ -2,13 +2,16 @@
 
 **Artifact quality:** fail
 **Program health:** blocked
+**Reported health:** on\_track
+**Claim health floor:** blocked
+**Health consistency:** conflicting
 **As of:** 2026-08-11T00:00:00.000Z
 
 ## Scorecard
 
 | Sources | Claims | Facts | Blockers | Risks | Unknowns | Conflicts | Evidence issues | Deprecations |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 3 | 4 | 2 | 1 | 1 | 0 | 1 | 2 | 0 |
+| 3 | 4 | 2 | 1 | 1 | 0 | 1 | 3 | 0 |
 
 ## Facts
 
@@ -35,6 +38,7 @@
 
 - **BLOCKING — blocker\_missing\_owner** at `claims\[2\]`: Active blocker 'rollback-owner' has no accountable owner; add owner and due\_at.
 - **REVIEW — risk\_missing\_mitigation** at `claims\[3\]`: Active risk 'capacity-risk' has no mitigation; add owner and mitigation.
+- **BLOCKING — health\_assessment\_conflicts\_with\_blocker** at `health\_assessment.state`: Reported health 'on\_track' conflicts with an active blocker; final health is blocked.
 
 ## Deprecations
 
@@ -45,6 +49,7 @@
 - **P0** Assign an owner and resolve blocker 'The rollback decision has no accountable owner' by 2026-08-14.
 - **P0** Reconcile 'launch.date' with the accountable owner before publishing status.
 - **P0** Active blocker 'rollback-owner' has no accountable owner; add owner and due\_at.
+- **P0** Reported health 'on\_track' conflicts with an active blocker; final health is blocked.
 - **P1** Assign an owner and mitigation for risk 'Peak traffic headroom has not been verified in production-like load tests'.
 - **P2** Active risk 'capacity-risk' has no mitigation; add owner and mitigation.
 

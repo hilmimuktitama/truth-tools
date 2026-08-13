@@ -182,7 +182,7 @@ citation integrity, freshness, contradictions, blockers, risks, and unknowns.
 function exampleInput() {
   return {
     kind: "status_artifact",
-    schema_version: "1.0.0",
+   schema_version: "2.0.0",
     as_of: "2026-08-11T00:00:00.000Z",
     initiative: {
       name: "Checkout migration",
@@ -199,6 +199,12 @@ function exampleInput() {
         source_updated_at: "2026-08-10T08:00:00.000Z"
       }
     ],
+    health_assessment: {
+      state: "on_track",
+      owner: "Platform TPM",
+      rationale: "All active claims are facts and the supplied evidence is current.",
+      source_refs: [{ source_id: "jira-release", locator: "https://example.atlassian.net/browse/PLAT-123" }]
+    },
     claims: [
       {
         id: "launch-date",

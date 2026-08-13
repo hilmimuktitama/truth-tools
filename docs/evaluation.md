@@ -24,6 +24,8 @@ synthetic suite (`npm run eval:synthetic`, also wired into CI), and reports:
   unknown) and valid tolerance behavior (timeline drift) are reported as
   conformance cases, not defects. Defect recall is the fraction of defect
   mutations whose complete issue signature was found.
+- **separated categories** — defect, health, compatibility, and tolerated
+  cases are tracked independently; timeline drift is tolerated, not a defect.
 
 `expect.issues` and `expect.deprecations` in `cases.json` are complete
 specifications: undeclared findings fail the case. The 30 hand-written cases
@@ -54,6 +56,10 @@ failures. That would require:
 
 Until that exists, READMEs and portfolio copy must not claim effectiveness,
 time savings, or adoption.
+
+The local-only two-reviewer/adjudication harness and its anonymization rules
+are documented under `evaluation/real-world/`. The checked-in label is
+synthetic verification only and is not a real-world evaluation result.
 
 ## Extending
 

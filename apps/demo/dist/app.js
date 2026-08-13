@@ -27,6 +27,14 @@ function badge(value) {
   return node;
 }
 
+function reviewForView() {
+  return state.view === "broken"
+    ? TRUTH_DEMO.brokenReview
+    : state.view === "fixed"
+      ? TRUTH_DEMO.fixedReview
+      : TRUTH_DEMO.factsOnlyReview;
+}
+
 // The narrative is derived from the review output, never hardcoded: source
 // ages come from daysBetween against the review's as_of and policy, so the
 // story always matches the freshness bars above it.
@@ -61,6 +69,10 @@ function verdictNarrative(review, view) {
     return `The engine refuses the artifact: ${clauses.join(", ")}. The blocker makes the program blocked.`;
   }
 
+  if (view === "facts-only") {
+    return "The artifact needs review: it contains the fact release.ready=false but no explicit health assessment. Program health is unknown.";
+  }
+
   if (rawBodyCount === 0) clauses.push("metadata only, no raw bodies");
   if (maxStaleAge === null) clauses.push("every source is fresh and citable");
   if (conflictValues.length === 0) clauses.push("the launch date is reconciled");
@@ -70,7 +82,7 @@ function verdictNarrative(review, view) {
 }
 
 function renderVerdict() {
-  const review = state.view === "broken" ? TRUTH_DEMO.brokenReview : TRUTH_DEMO.fixedReview;
+  const review = reviewForView();
   const quality = $("badge-quality");
   const health = $("badge-health");
   quality.replaceChildren(badge(`quality: ${review.artifact_quality}`));
@@ -82,7 +94,9 @@ function renderVerdict() {
   $("quality-health-lesson").textContent =
     state.view === "broken"
       ? "Here quality and health both fail — the evidence is broken, so we cannot even trust the blocker."
-      : "Here quality passes while health stays blocked. Fixing the evidence did not fix the program; it made the blocker visible and trustworthy.";
+      : state.view === "fixed"
+        ? "Here quality passes while health stays blocked. Fixing the evidence did not fix the program; it made the blocker visible and trustworthy."
+        : "Here the evidence is facts-only and needs review because no health assessment was supplied. Facts alone do not establish program health.";
 }
 
 // Pure freshness computation shared by the browser and the test suite. Each
@@ -114,7 +128,7 @@ export function freshnessRows(review) {
 }
 
 function renderFreshness() {
-  const review = state.view === "broken" ? TRUTH_DEMO.brokenReview : TRUTH_DEMO.fixedReview;
+  const review = reviewForView();
   const panel = $("freshness-panel");
   panel.replaceChildren();
 
@@ -165,7 +179,7 @@ function renderFreshness() {
 }
 
 function renderCategories() {
-  const review = state.view === "broken" ? TRUTH_DEMO.brokenReview : TRUTH_DEMO.fixedReview;
+  const review = reviewForView();
   const panel = $("categories-panel");
   panel.replaceChildren();
 
@@ -190,8 +204,20 @@ function renderCategories() {
   }
 }
 
+function renderHealthDimensions() {
+  const review = reviewForView();
+  const panel = $("health-panel");
+  panel.replaceChildren();
+  for (const [label, value] of [
+    ["Reported", review.reported_program_health],
+    ["Claim floor", review.claim_health_floor],
+    ["Final", review.program_health],
+    ["Consistency", review.health_consistency]
+  ]) panel.append(el("p", null, `${label}: ${value ?? "missing"}`));
+}
+
 function renderConflicts() {
-  const review = state.view === "broken" ? TRUTH_DEMO.brokenReview : TRUTH_DEMO.fixedReview;
+  const review = reviewForView();
   const list = $("conflicts-panel");
   list.replaceChildren();
 
@@ -206,7 +232,7 @@ function renderConflicts() {
 }
 
 function renderActions() {
-  const review = state.view === "broken" ? TRUTH_DEMO.brokenReview : TRUTH_DEMO.fixedReview;
+  const review = reviewForView();
   const list = $("actions-panel");
   list.replaceChildren();
 
@@ -217,6 +243,21 @@ function renderActions() {
   for (const action of review.recommended_actions) {
     list.append(el("li", null, `${action.priority} — ${action.action}`));
   }
+}
+
+function renderFindings() {
+  const review = reviewForView();
+  const list = $("findings-panel");
+  list.replaceChildren();
+  const findings = [
+    ...review.findings.issues.map((item) => `${item.severity}: ${item.type} — ${item.message}`),
+    ...review.findings.deprecations.map((item) => `deprecated: ${item.type} — ${item.message}`)
+  ];
+  if (findings.length === 0) {
+    list.append(el("li", null, "None."));
+    return;
+  }
+  for (const finding of findings) list.append(el("li", null, finding));
 }
 
 function renderDrift() {
@@ -278,7 +319,7 @@ function renderSibling() {
 
   const programReview = sibling.program.review;
   reviews.replaceChildren(
-    badge(`capture ${sibling.capture.summary.sources} sources`),
+    badge(`capture ${sibling.capture.summary.source_count} sources`),
     badge(`timeline ${sibling.timeline.items.length} items`),
     badge(`quality: ${programReview.artifact_quality}`),
     badge(`health: ${programReview.program_health}`)
@@ -290,7 +331,6 @@ function renderSibling() {
     const included = source.raw_included ? "yes (held in system of record)" : "no";
     captureList.append(el("li", null, `${source.id} (${source.type}) observed ${source.observed_at.slice(0, 10)} · raw included: ${included}`));
   }
-
   const diff = sibling.diff;
   const timelineList = $("sibling-timeline");
   timelineList.replaceChildren(
@@ -324,7 +364,8 @@ function renderSibling() {
 function bindToggle() {
   const buttons = {
     broken: $("view-broken"),
-    fixed: $("view-fixed")
+    fixed: $("view-fixed"),
+    "facts-only": $("view-facts-only")
   };
   for (const [view, button] of Object.entries(buttons)) {
     button.addEventListener("click", () => {
@@ -334,8 +375,10 @@ function bindToggle() {
       renderVerdict();
       renderFreshness();
       renderCategories();
+      renderHealthDimensions();
       renderConflicts();
       renderActions();
+      renderFindings();
     });
   }
 }
@@ -345,8 +388,10 @@ function init() {
   renderVerdict();
   renderFreshness();
   renderCategories();
+  renderHealthDimensions();
   renderConflicts();
   renderActions();
+  renderFindings();
   renderDrift();
   renderSibling();
   bindToggle();

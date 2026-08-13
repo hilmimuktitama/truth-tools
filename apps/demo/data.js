@@ -1,9 +1,11 @@
 // Public-safe demo data: raw source bodies are stripped by scripts/demo.js
 // and asserted absent before this file is written or deployed to Pages.
 export const TRUTH_DEMO = {
-  "version": "0.3.1",
+  "version": "0.4.0",
   "publicSafe": true,
   "broken": {
+    "kind": "status_artifact",
+    "schema_version": "2.0.0",
     "as_of": "2026-08-11T00:00:00.000Z",
     "initiative": {
       "name": "Checkout migration launch readiness",
@@ -87,11 +89,22 @@ export const TRUTH_DEMO = {
           }
         ]
       }
-    ]
+    ],
+    "health_assessment": {
+      "state": "on_track",
+      "owner": "Platform TPM",
+      "rationale": "The supplied status claims on-track health.",
+      "source_refs": [
+        {
+          "source_id": "risk-review",
+          "locator": "https://example.com/notes/risk-review"
+        }
+      ]
+    }
   },
   "brokenReview": {
     "kind": "truth_review",
-    "schema_version": "1.0.0",
+    "schema_version": "2.0.0",
     "initiative": {
       "name": "Checkout migration launch readiness",
       "owner": "Platform TPM",
@@ -102,8 +115,22 @@ export const TRUTH_DEMO = {
       "max_observation_age_days": 7,
       "max_source_content_age_days": 3
     },
+    "health_assessment": {
+      "state": "on_track",
+      "owner": "Platform TPM",
+      "rationale": "The supplied status claims on-track health.",
+      "source_refs": [
+        {
+          "source_id": "risk-review",
+          "locator": "https://example.com/notes/risk-review"
+        }
+      ]
+    },
     "artifact_quality": "fail",
+    "reported_program_health": "on_track",
+    "claim_health_floor": "blocked",
     "program_health": "blocked",
+    "health_consistency": "conflicting",
     "summary": {
       "sources": 3,
       "claims": 4,
@@ -112,7 +139,7 @@ export const TRUTH_DEMO = {
       "risks": 1,
       "unknowns": 0,
       "conflicts": 1,
-      "issues": 9,
+      "issues": 10,
       "deprecations": 0
     },
     "sources": [
@@ -289,8 +316,9 @@ export const TRUTH_DEMO = {
         {
           "type": "raw_source_content",
           "severity": "blocking",
-          "location": "sources[0]",
-          "message": "Remove raw source fields (content); keep source bodies in their system of record."
+          "location": "sources[0].content",
+          "message": "Remove raw source field 'content'; keep source bodies in their system of record.",
+          "field": "content"
         },
         {
           "type": "stale_observation",
@@ -351,6 +379,12 @@ export const TRUTH_DEMO = {
           "severity": "review",
           "location": "claims[3]",
           "message": "Active risk 'capacity-risk' has no mitigation; add owner and mitigation."
+        },
+        {
+          "type": "health_assessment_conflicts_with_blocker",
+          "severity": "blocking",
+          "location": "health_assessment.state",
+          "message": "Reported health 'on_track' conflicts with an active blocker; final health is blocked."
         }
       ],
       "deprecations": []
@@ -371,8 +405,8 @@ export const TRUTH_DEMO = {
       {
         "priority": "P0",
         "type": "fix_evidence",
-        "action": "Remove raw source fields (content); keep source bodies in their system of record.",
-        "location": "sources[0]"
+        "action": "Remove raw source field 'content'; keep source bodies in their system of record.",
+        "location": "sources[0].content"
       },
       {
         "priority": "P0",
@@ -385,6 +419,12 @@ export const TRUTH_DEMO = {
         "type": "fix_evidence",
         "action": "Active blocker 'rollback-owner' has no resolution date; add owner and due_at.",
         "location": "claims[2]"
+      },
+      {
+        "priority": "P0",
+        "type": "fix_evidence",
+        "action": "Reported health 'on_track' conflicts with an active blocker; final health is blocked.",
+        "location": "health_assessment.state"
       },
       {
         "priority": "P1",
@@ -430,10 +470,10 @@ export const TRUTH_DEMO = {
       }
     ]
   },
-  "brokenReport": "# Truth Review: Checkout migration launch readiness\n\n**Artifact quality:** fail\n**Program health:** blocked\n**As of:** 2026-08-11T00:00:00.000Z\n\n## Scorecard\n\n| Sources | Claims | Facts | Blockers | Risks | Unknowns | Conflicts | Evidence issues | Deprecations |\n| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n| 3 | 4 | 2 | 1 | 1 | 0 | 1 | 9 | 0 |\n\n## Facts\n\n- **`launch-date-jira`:** Jira records the launch date as August 20. Sources: `jira-release`.\n- **`launch-date-decision`:** The decision log records the launch date as August 22. Sources: `decision-log`.\n\n## Blockers\n\n- **`rollback-owner`:** The rollback decision has no accountable owner. Sources: `risk-review`.\n\n## Risks\n\n- **`capacity-risk`:** Peak traffic headroom has not been verified in production-like load tests. Sources: `risk-review`.\n\n## Unknowns\n\n- None.\n\n## Conflicts\n\n- **launch.date:** \"2026-08-20\" vs \"2026-08-22\". Reconcile 'launch.date' with the accountable owner before publishing status.\n\n## Evidence Issues\n\n- **BLOCKING — raw\\_source\\_content** at `sources\\[0\\]`: Remove raw source fields (content); keep source bodies in their system of record.\n- **REVIEW — stale\\_observation** at `sources\\[0\\]`: Source 'jira-release' was observed 21.667 days ago; policy allows 7 (stale\\_observation).\n- **REVIEW — stale\\_source\\_content** at `sources\\[0\\]`: Source 'jira-release' content was last updated 21.667 days ago; policy allows 3 (stale\\_source\\_content).\n- **REVIEW — stale\\_observation** at `sources\\[1\\]`: Source 'decision-log' was observed 9.417 days ago; policy allows 7 (stale\\_observation).\n- **REVIEW — stale\\_source\\_content** at `sources\\[1\\]`: Source 'decision-log' content was last updated 9.417 days ago; policy allows 3 (stale\\_source\\_content).\n- **BLOCKING — blocker\\_missing\\_owner** at `claims\\[2\\]`: Active blocker 'rollback-owner' has no accountable owner; add owner and due\\_at.\n- **BLOCKING — blocker\\_missing\\_due** at `claims\\[2\\]`: Active blocker 'rollback-owner' has no resolution date; add owner and due\\_at.\n- **REVIEW — risk\\_missing\\_owner** at `claims\\[3\\]`: Active risk 'capacity-risk' has no accountable owner; add owner and mitigation.\n- **REVIEW — risk\\_missing\\_mitigation** at `claims\\[3\\]`: Active risk 'capacity-risk' has no mitigation; add owner and mitigation.\n\n## Deprecations\n\n- None.\n\n## Next Actions\n\n- **P0** Assign an owner and resolution date for blocker 'The rollback decision has no accountable owner'.\n- **P0** Reconcile 'launch.date' with the accountable owner before publishing status.\n- **P0** Remove raw source fields (content); keep source bodies in their system of record.\n- **P0** Active blocker 'rollback-owner' has no accountable owner; add owner and due\\_at.\n- **P0** Active blocker 'rollback-owner' has no resolution date; add owner and due\\_at.\n- **P1** Assign an owner and mitigation for risk 'Peak traffic headroom has not been verified in production-like load tests'.\n- **P2** Source 'jira-release' was observed 21.667 days ago; policy allows 7 (stale\\_observation).\n- **P2** Source 'jira-release' content was last updated 21.667 days ago; policy allows 3 (stale\\_source\\_content).\n- **P2** Source 'decision-log' was observed 9.417 days ago; policy allows 7 (stale\\_observation).\n- **P2** Source 'decision-log' content was last updated 9.417 days ago; policy allows 3 (stale\\_source\\_content).\n- **P2** Active risk 'capacity-risk' has no accountable owner; add owner and mitigation.\n- **P2** Active risk 'capacity-risk' has no mitigation; add owner and mitigation.\n\n## Evidence\n\n- `jira-release` (jira) observed 2026-07-20T08:00:00.000Z, source updated 2026-07-20T08:00:00.000Z — https://example.atlassian.net/browse/PLAT-123\n- `decision-log` (decision-log) observed 2026-08-01T14:00:00.000Z, source updated 2026-08-01T14:00:00.000Z — https://example.com/decisions/checkout-launch\n- `risk-review` (meeting-note) observed 2026-08-08T09:00:00.000Z, source updated 2026-08-08T09:00:00.000Z — https://example.com/notes/risk-review\n",
+  "brokenReport": "# Truth Review: Checkout migration launch readiness\n\n**Artifact quality:** fail\n**Program health:** blocked\n**Reported health:** on\\_track\n**Claim health floor:** blocked\n**Health consistency:** conflicting\n**As of:** 2026-08-11T00:00:00.000Z\n\n## Scorecard\n\n| Sources | Claims | Facts | Blockers | Risks | Unknowns | Conflicts | Evidence issues | Deprecations |\n| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n| 3 | 4 | 2 | 1 | 1 | 0 | 1 | 10 | 0 |\n\n## Facts\n\n- **`launch-date-jira`:** Jira records the launch date as August 20. Sources: `jira-release`.\n- **`launch-date-decision`:** The decision log records the launch date as August 22. Sources: `decision-log`.\n\n## Blockers\n\n- **`rollback-owner`:** The rollback decision has no accountable owner. Sources: `risk-review`.\n\n## Risks\n\n- **`capacity-risk`:** Peak traffic headroom has not been verified in production-like load tests. Sources: `risk-review`.\n\n## Unknowns\n\n- None.\n\n## Conflicts\n\n- **launch.date:** \"2026-08-20\" vs \"2026-08-22\". Reconcile 'launch.date' with the accountable owner before publishing status.\n\n## Evidence Issues\n\n- **BLOCKING — raw\\_source\\_content** at `sources\\[0\\].content`: Remove raw source field 'content'; keep source bodies in their system of record.\n- **REVIEW — stale\\_observation** at `sources\\[0\\]`: Source 'jira-release' was observed 21.667 days ago; policy allows 7 (stale\\_observation).\n- **REVIEW — stale\\_source\\_content** at `sources\\[0\\]`: Source 'jira-release' content was last updated 21.667 days ago; policy allows 3 (stale\\_source\\_content).\n- **REVIEW — stale\\_observation** at `sources\\[1\\]`: Source 'decision-log' was observed 9.417 days ago; policy allows 7 (stale\\_observation).\n- **REVIEW — stale\\_source\\_content** at `sources\\[1\\]`: Source 'decision-log' content was last updated 9.417 days ago; policy allows 3 (stale\\_source\\_content).\n- **BLOCKING — blocker\\_missing\\_owner** at `claims\\[2\\]`: Active blocker 'rollback-owner' has no accountable owner; add owner and due\\_at.\n- **BLOCKING — blocker\\_missing\\_due** at `claims\\[2\\]`: Active blocker 'rollback-owner' has no resolution date; add owner and due\\_at.\n- **REVIEW — risk\\_missing\\_owner** at `claims\\[3\\]`: Active risk 'capacity-risk' has no accountable owner; add owner and mitigation.\n- **REVIEW — risk\\_missing\\_mitigation** at `claims\\[3\\]`: Active risk 'capacity-risk' has no mitigation; add owner and mitigation.\n- **BLOCKING — health\\_assessment\\_conflicts\\_with\\_blocker** at `health\\_assessment.state`: Reported health 'on\\_track' conflicts with an active blocker; final health is blocked.\n\n## Deprecations\n\n- None.\n\n## Next Actions\n\n- **P0** Assign an owner and resolution date for blocker 'The rollback decision has no accountable owner'.\n- **P0** Reconcile 'launch.date' with the accountable owner before publishing status.\n- **P0** Remove raw source field 'content'; keep source bodies in their system of record.\n- **P0** Active blocker 'rollback-owner' has no accountable owner; add owner and due\\_at.\n- **P0** Active blocker 'rollback-owner' has no resolution date; add owner and due\\_at.\n- **P0** Reported health 'on\\_track' conflicts with an active blocker; final health is blocked.\n- **P1** Assign an owner and mitigation for risk 'Peak traffic headroom has not been verified in production-like load tests'.\n- **P2** Source 'jira-release' was observed 21.667 days ago; policy allows 7 (stale\\_observation).\n- **P2** Source 'jira-release' content was last updated 21.667 days ago; policy allows 3 (stale\\_source\\_content).\n- **P2** Source 'decision-log' was observed 9.417 days ago; policy allows 7 (stale\\_observation).\n- **P2** Source 'decision-log' content was last updated 9.417 days ago; policy allows 3 (stale\\_source\\_content).\n- **P2** Active risk 'capacity-risk' has no accountable owner; add owner and mitigation.\n- **P2** Active risk 'capacity-risk' has no mitigation; add owner and mitigation.\n\n## Evidence\n\n- `jira-release` (jira) observed 2026-07-20T08:00:00.000Z, source updated 2026-07-20T08:00:00.000Z — https://example.atlassian.net/browse/PLAT-123\n- `decision-log` (decision-log) observed 2026-08-01T14:00:00.000Z, source updated 2026-08-01T14:00:00.000Z — https://example.com/decisions/checkout-launch\n- `risk-review` (meeting-note) observed 2026-08-08T09:00:00.000Z, source updated 2026-08-08T09:00:00.000Z — https://example.com/notes/risk-review\n",
   "fixed": {
     "kind": "status_artifact",
-    "schema_version": "1.0.0",
+    "schema_version": "2.0.0",
     "as_of": "2026-08-11T00:00:00.000Z",
     "initiative": {
       "name": "Checkout migration launch readiness",
@@ -443,6 +483,17 @@ export const TRUTH_DEMO = {
     "policy": {
       "max_observation_age_days": 14,
       "max_source_content_age_days": 14
+    },
+    "health_assessment": {
+      "state": "blocked",
+      "owner": "Platform TPM",
+      "rationale": "The rollback blocker remains active pending accountable ownership and resolution date.",
+      "source_refs": [
+        {
+          "source_id": "risk-review",
+          "locator": "https://example.com/notes/risk-review"
+        }
+      ]
     },
     "sources": [
       {
@@ -766,7 +817,7 @@ export const TRUTH_DEMO = {
   },
   "fixedReview": {
     "kind": "truth_review",
-    "schema_version": "1.0.0",
+    "schema_version": "2.0.0",
     "initiative": {
       "name": "Checkout migration launch readiness",
       "owner": "Platform TPM",
@@ -777,8 +828,22 @@ export const TRUTH_DEMO = {
       "max_observation_age_days": 14,
       "max_source_content_age_days": 14
     },
+    "health_assessment": {
+      "state": "blocked",
+      "owner": "Platform TPM",
+      "rationale": "The rollback blocker remains active pending accountable ownership and resolution date.",
+      "source_refs": [
+        {
+          "source_id": "risk-review",
+          "locator": "https://example.com/notes/risk-review"
+        }
+      ]
+    },
     "artifact_quality": "pass",
+    "reported_program_health": "blocked",
+    "claim_health_floor": "blocked",
     "program_health": "blocked",
+    "health_consistency": "consistent",
     "summary": {
       "sources": 4,
       "claims": 4,
@@ -1210,7 +1275,7 @@ export const TRUTH_DEMO = {
       }
     ]
   },
-  "fixedReport": "# Truth Review: Checkout migration launch readiness\n\n**Artifact quality:** pass\n**Program health:** blocked\n**As of:** 2026-08-11T00:00:00.000Z\n\n## Scorecard\n\n| Sources | Claims | Facts | Blockers | Risks | Unknowns | Conflicts | Evidence issues | Deprecations |\n| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n| 4 | 4 | 2 | 1 | 1 | 0 | 0 | 0 | 0 |\n\n## Facts\n\n- **`launch-date`:** The decision log and the Jira tracker agree on August 20 as the launch date. Sources: `jira-release`, `decision-log`.\n- **`release-freeze`:** Release freeze started August 10 and is in effect. Sources: `jira-release`.\n\n## Blockers\n\n- **`rollback-owner`:** The rollback decision has no accountable owner; PLAT-124 has no assignee. Owner: Platform TPM. Due: 2026-08-14. Sources: `jira-rollback`, `risk-review`.\n\n## Risks\n\n- **`capacity-risk`:** Peak traffic headroom has not been verified in production-like load tests. Owner: Platform Engineering. Sources: `risk-review`.\n\n## Unknowns\n\n- None.\n\n## Conflicts\n\n- None.\n\n## Timeline Drift\n\n**Baseline:** 4 items — **Current:** 5 items — **Added:** 1 — **Removed:** 0 — **Changed:** 4 — **Unchanged:** 0\n\n### Added\n\n- **Rollback owner named** (2026-08-12, planned)\n\n### Removed\n\n- None.\n\n### Changed\n\n- **Rollback drill complete:** status planned -> done\n- **Load test at 200% peak:** start 2026-08-03 -> 2026-08-14; end 2026-08-03 -> 2026-08-14; status planned -> in_progress\n- **Release freeze:** status planned -> done\n- **Launch:** start 2026-08-17 -> 2026-08-20; end 2026-08-17 -> 2026-08-20\n\n## Evidence Issues\n\n- None.\n\n## Deprecations\n\n- None.\n\n## Next Actions\n\n- **P0** Resolve blocker 'The rollback decision has no accountable owner; PLAT-124 has no assignee' with Platform TPM by 2026-08-14.\n- **P1** Track mitigation for risk 'Peak traffic headroom has not been verified in production-like load tests' with Platform Engineering.\n\n## Evidence\n\n- `jira-release` (jira) observed 2026-08-10T08:00:00.000Z, source updated 2026-08-10T08:00:00.000Z — https://example.atlassian.net/browse/PLAT-123\n- `jira-rollback` (jira) observed 2026-08-10T09:00:00.000Z, source updated 2026-08-10T09:00:00.000Z — https://example.atlassian.net/browse/PLAT-124\n- `decision-log` (decision-log) observed 2026-08-09T14:00:00.000Z, source updated 2026-08-09T14:00:00.000Z — https://example.com/decisions/checkout-launch\n- `risk-review` (meeting-note) observed 2026-08-08T09:00:00.000Z, source updated 2026-08-08T09:00:00.000Z — https://example.com/notes/risk-review\n",
+  "fixedReport": "# Truth Review: Checkout migration launch readiness\n\n**Artifact quality:** pass\n**Program health:** blocked\n**Reported health:** blocked\n**Claim health floor:** blocked\n**Health consistency:** consistent\n**As of:** 2026-08-11T00:00:00.000Z\n\n## Scorecard\n\n| Sources | Claims | Facts | Blockers | Risks | Unknowns | Conflicts | Evidence issues | Deprecations |\n| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n| 4 | 4 | 2 | 1 | 1 | 0 | 0 | 0 | 0 |\n\n## Facts\n\n- **`launch-date`:** The decision log and the Jira tracker agree on August 20 as the launch date. Sources: `jira-release`, `decision-log`.\n- **`release-freeze`:** Release freeze started August 10 and is in effect. Sources: `jira-release`.\n\n## Blockers\n\n- **`rollback-owner`:** The rollback decision has no accountable owner; PLAT-124 has no assignee. Owner: Platform TPM. Due: 2026-08-14. Sources: `jira-rollback`, `risk-review`.\n\n## Risks\n\n- **`capacity-risk`:** Peak traffic headroom has not been verified in production-like load tests. Owner: Platform Engineering. Sources: `risk-review`.\n\n## Unknowns\n\n- None.\n\n## Conflicts\n\n- None.\n\n## Timeline Drift\n\n**Baseline:** 4 items — **Current:** 5 items — **Added:** 1 — **Removed:** 0 — **Changed:** 4 — **Unchanged:** 0\n\n### Added\n\n- **Rollback owner named** (2026-08-12, planned)\n\n### Removed\n\n- None.\n\n### Changed\n\n- **Rollback drill complete:** status planned -> done\n- **Load test at 200% peak:** start 2026-08-03 -> 2026-08-14; end 2026-08-03 -> 2026-08-14; status planned -> in_progress\n- **Release freeze:** status planned -> done\n- **Launch:** start 2026-08-17 -> 2026-08-20; end 2026-08-17 -> 2026-08-20\n\n## Evidence Issues\n\n- None.\n\n## Deprecations\n\n- None.\n\n## Next Actions\n\n- **P0** Resolve blocker 'The rollback decision has no accountable owner; PLAT-124 has no assignee' with Platform TPM by 2026-08-14.\n- **P1** Track mitigation for risk 'Peak traffic headroom has not been verified in production-like load tests' with Platform Engineering.\n\n## Evidence\n\n- `jira-release` (jira) observed 2026-08-10T08:00:00.000Z, source updated 2026-08-10T08:00:00.000Z — https://example.atlassian.net/browse/PLAT-123\n- `jira-rollback` (jira) observed 2026-08-10T09:00:00.000Z, source updated 2026-08-10T09:00:00.000Z — https://example.atlassian.net/browse/PLAT-124\n- `decision-log` (decision-log) observed 2026-08-09T14:00:00.000Z, source updated 2026-08-09T14:00:00.000Z — https://example.com/decisions/checkout-launch\n- `risk-review` (meeting-note) observed 2026-08-08T09:00:00.000Z, source updated 2026-08-08T09:00:00.000Z — https://example.com/notes/risk-review\n",
   "baseline": {
     "public_safe": true,
     "plan": "Launch readiness baseline",
@@ -1545,7 +1610,7 @@ export const TRUTH_DEMO = {
   "sibling": {
     "capture": {
       "kind": "capture_truth_evidence_pack",
-      "schema_version": "0.4.1",
+      "schema_version": "0.5.0",
       "generated_at": "2026-08-11T00:00:00.000Z",
       "sources": [
         {
@@ -1617,8 +1682,8 @@ export const TRUTH_DEMO = {
     },
     "timeline": {
       "kind": "timeline",
-      "schema_version": "0.3.0",
-      "version": "0.3.0",
+      "schema_version": "0.4.0",
+      "version": "0.4.0",
       "items": [
         {
           "id": "t1",
@@ -1781,10 +1846,11 @@ export const TRUTH_DEMO = {
           "markdown",
           "review_report"
         ]
-      }
+      },
+      "warnings": []
     },
     "diff": {
-      "schema_version": "0.3.0",
+      "schema_version": "0.4.0",
       "baseline": {
         "label": "baseline",
         "item_count": 4
@@ -1894,7 +1960,7 @@ export const TRUTH_DEMO = {
     "program": {
       "artifact": {
         "kind": "status_artifact",
-        "schema_version": "1.0.0",
+        "schema_version": "2.0.0",
         "as_of": "2026-08-11T09:00:00.000Z",
         "initiative": {
           "name": "Launch Readiness",
@@ -1910,6 +1976,14 @@ export const TRUTH_DEMO = {
             "id": "jira-billing",
             "type": "jira",
             "url": "https://demo.atlassian.net/browse/BILL-920",
+            "observed_at": "2026-08-11T08:00:00.000Z",
+            "source_updated_at": "2026-08-11T08:00:00.000Z",
+            "owner": "Eng Lead A"
+          },
+          {
+            "id": "jira-billing-children",
+            "type": "jira-query-export",
+            "url": "https://demo.atlassian.net/issues/?jql=parent%20%3D%20BILL-920",
             "observed_at": "2026-08-11T08:00:00.000Z",
             "source_updated_at": "2026-08-11T08:00:00.000Z",
             "owner": "Eng Lead A"
@@ -1947,6 +2021,17 @@ export const TRUTH_DEMO = {
             "owner": "Program Operator"
           }
         ],
+        "health_assessment": {
+          "state": "blocked",
+          "owner": "Program Operator",
+          "rationale": "An active quota API blocker prevents campaign integration validation and the release decision.",
+          "source_refs": [
+            {
+              "source_id": "jira-quota",
+              "locator": "https://demo.atlassian.net/browse/QUOTA-311"
+            }
+          ]
+        },
         "claims": [
           {
             "id": "fact-billing-done",
@@ -1957,8 +2042,8 @@ export const TRUTH_DEMO = {
             "text": "All billing required tasks (children of BILL-920) are Done.",
             "source_refs": [
               {
-                "source_id": "jira-billing",
-                "locator": "https://demo.atlassian.net/browse/BILL-920"
+                "source_id": "jira-billing-children",
+                "locator": "https://demo.atlassian.net/issues/?jql=parent%20%3D%20BILL-920"
               }
             ]
           },
@@ -2066,7 +2151,7 @@ export const TRUTH_DEMO = {
       },
       "review": {
         "kind": "truth_review",
-        "schema_version": "1.0.0",
+        "schema_version": "2.0.0",
         "initiative": {
           "name": "Launch Readiness",
           "owner": "Program Operator",
@@ -2077,10 +2162,24 @@ export const TRUTH_DEMO = {
           "max_observation_age_days": 14,
           "max_source_content_age_days": 14
         },
+        "health_assessment": {
+          "state": "blocked",
+          "owner": "Program Operator",
+          "rationale": "An active quota API blocker prevents campaign integration validation and the release decision.",
+          "source_refs": [
+            {
+              "source_id": "jira-quota",
+              "locator": "https://demo.atlassian.net/browse/QUOTA-311"
+            }
+          ]
+        },
         "artifact_quality": "pass",
+        "reported_program_health": "blocked",
+        "claim_health_floor": "blocked",
         "program_health": "blocked",
+        "health_consistency": "consistent",
         "summary": {
-          "sources": 5,
+          "sources": 6,
           "claims": 8,
           "facts": 4,
           "blockers": 1,
@@ -2095,6 +2194,14 @@ export const TRUTH_DEMO = {
             "id": "jira-billing",
             "type": "jira",
             "url": "https://demo.atlassian.net/browse/BILL-920",
+            "observed_at": "2026-08-11T08:00:00.000Z",
+            "source_updated_at": "2026-08-11T08:00:00.000Z",
+            "owner": "Eng Lead A"
+          },
+          {
+            "id": "jira-billing-children",
+            "type": "jira-query-export",
+            "url": "https://demo.atlassian.net/issues/?jql=parent%20%3D%20BILL-920",
             "observed_at": "2026-08-11T08:00:00.000Z",
             "source_updated_at": "2026-08-11T08:00:00.000Z",
             "owner": "Eng Lead A"
@@ -2142,8 +2249,8 @@ export const TRUTH_DEMO = {
             "text": "All billing required tasks (children of BILL-920) are Done.",
             "source_refs": [
               {
-                "source_id": "jira-billing",
-                "locator": "https://demo.atlassian.net/browse/BILL-920"
+                "source_id": "jira-billing-children",
+                "locator": "https://demo.atlassian.net/issues/?jql=parent%20%3D%20BILL-920"
               }
             ]
           },
@@ -2259,8 +2366,8 @@ export const TRUTH_DEMO = {
               "text": "All billing required tasks (children of BILL-920) are Done.",
               "source_refs": [
                 {
-                  "source_id": "jira-billing",
-                  "locator": "https://demo.atlassian.net/browse/BILL-920"
+                  "source_id": "jira-billing-children",
+                  "locator": "https://demo.atlassian.net/issues/?jql=parent%20%3D%20BILL-920"
                 }
               ]
             },
@@ -2402,7 +2509,141 @@ export const TRUTH_DEMO = {
           }
         ]
       },
-      "report": "# Truth Review: Launch Readiness\n\n**Artifact quality:** pass\n**Program health:** blocked\n**As of:** 2026-08-11T09:00:00.000Z\n\n## Scorecard\n\n| Sources | Claims | Facts | Blockers | Risks | Unknowns | Conflicts | Evidence issues | Deprecations |\n| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n| 5 | 8 | 4 | 1 | 1 | 2 | 0 | 0 | 0 |\n\n## Facts\n\n- **`fact-billing-done`:** All billing required tasks (children of BILL-920) are Done. Sources: `jira-billing`.\n- **`fact-quota-open`:** Quota API task QUOTA-311 remains open with no assignee. Sources: `jira-quota`.\n- **`fact-campaign-waiting`:** Campaign orchestration integration validation is waiting on the quota API. Sources: `jira-campaign`.\n- **`fact-qa-pending`:** The 2026-08-07 sync note records QA sign-off as pending until integration validation completes. Sources: `confluence-sync`.\n\n## Blockers\n\n- **`blocker-quota`:** Release and campaign integration validation are blocked by the open quota API contract task QUOTA-311. Owner: Eng Lead B. Due: 2026-08-18. Sources: `jira-quota`.\n\n## Risks\n\n- **`risk-quota-slip`:** Quota API could slip past 2026-08-18 and push the launch date. Owner: Program Operator. Sources: `jira-quota`.\n\n## Unknowns\n\n- **`unknown-quota-eta`:** Quota API completion ETA from the quota service owner is unconfirmed. Owner: Eng Lead B. Sources: `jira-quota`.\n- **`unknown-staging-signoff`:** No dated confirmation of staging sign-off after 2026-08-10. Owner: QA Lead. Sources: `local-status`.\n\n## Conflicts\n\n- None.\n\n## Evidence Issues\n\n- None.\n\n## Deprecations\n\n- None.\n\n## Next Actions\n\n- **P0** Resolve blocker 'Release and campaign integration validation are blocked by the open quota API contract task QUOTA-311' with Eng Lead B by 2026-08-18.\n- **P1** Track mitigation for risk 'Quota API could slip past 2026-08-18 and push the launch date' with Program Operator.\n- **P1** Resolve unknown 'Quota API completion ETA from the quota service owner is unconfirmed' with Eng Lead B, or explicitly accept it.\n- **P1** Resolve unknown 'No dated confirmation of staging sign-off after 2026-08-10' with QA Lead, or explicitly accept it.\n\n## Evidence\n\n- `jira-billing` (jira) observed 2026-08-11T08:00:00.000Z, source updated 2026-08-11T08:00:00.000Z — https://demo.atlassian.net/browse/BILL-920\n- `jira-quota` (jira) observed 2026-08-11T08:00:00.000Z, source updated 2026-08-11T08:00:00.000Z — https://demo.atlassian.net/browse/QUOTA-311\n- `jira-campaign` (jira) observed 2026-08-11T08:00:00.000Z, source updated 2026-08-11T08:00:00.000Z — https://demo.atlassian.net/browse/CMP-188\n- `confluence-sync` (confluence) observed 2026-08-07T15:00:00.000Z, source updated 2026-08-07T15:00:00.000Z — https://demo.atlassian.net/wiki/spaces/PLAT/pages/2026-08-07\n- `local-status` (local) observed 2026-08-10T18:00:00.000Z, source updated 2026-08-10T18:00:00.000Z\n"
+      "report": "# Truth Review: Launch Readiness\n\n**Artifact quality:** pass\n**Program health:** blocked\n**Reported health:** blocked\n**Claim health floor:** blocked\n**Health consistency:** consistent\n**As of:** 2026-08-11T09:00:00.000Z\n\n## Scorecard\n\n| Sources | Claims | Facts | Blockers | Risks | Unknowns | Conflicts | Evidence issues | Deprecations |\n| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n| 6 | 8 | 4 | 1 | 1 | 2 | 0 | 0 | 0 |\n\n## Facts\n\n- **`fact-billing-done`:** All billing required tasks (children of BILL-920) are Done. Sources: `jira-billing-children`.\n- **`fact-quota-open`:** Quota API task QUOTA-311 remains open with no assignee. Sources: `jira-quota`.\n- **`fact-campaign-waiting`:** Campaign orchestration integration validation is waiting on the quota API. Sources: `jira-campaign`.\n- **`fact-qa-pending`:** The 2026-08-07 sync note records QA sign-off as pending until integration validation completes. Sources: `confluence-sync`.\n\n## Blockers\n\n- **`blocker-quota`:** Release and campaign integration validation are blocked by the open quota API contract task QUOTA-311. Owner: Eng Lead B. Due: 2026-08-18. Sources: `jira-quota`.\n\n## Risks\n\n- **`risk-quota-slip`:** Quota API could slip past 2026-08-18 and push the launch date. Owner: Program Operator. Sources: `jira-quota`.\n\n## Unknowns\n\n- **`unknown-quota-eta`:** Quota API completion ETA from the quota service owner is unconfirmed. Owner: Eng Lead B. Sources: `jira-quota`.\n- **`unknown-staging-signoff`:** No dated confirmation of staging sign-off after 2026-08-10. Owner: QA Lead. Sources: `local-status`.\n\n## Conflicts\n\n- None.\n\n## Evidence Issues\n\n- None.\n\n## Deprecations\n\n- None.\n\n## Next Actions\n\n- **P0** Resolve blocker 'Release and campaign integration validation are blocked by the open quota API contract task QUOTA-311' with Eng Lead B by 2026-08-18.\n- **P1** Track mitigation for risk 'Quota API could slip past 2026-08-18 and push the launch date' with Program Operator.\n- **P1** Resolve unknown 'Quota API completion ETA from the quota service owner is unconfirmed' with Eng Lead B, or explicitly accept it.\n- **P1** Resolve unknown 'No dated confirmation of staging sign-off after 2026-08-10' with QA Lead, or explicitly accept it.\n\n## Evidence\n\n- `jira-billing` (jira) observed 2026-08-11T08:00:00.000Z, source updated 2026-08-11T08:00:00.000Z — https://demo.atlassian.net/browse/BILL-920\n- `jira-billing-children` (jira-query-export) observed 2026-08-11T08:00:00.000Z, source updated 2026-08-11T08:00:00.000Z — https://demo.atlassian.net/issues/?jql=parent%20%3D%20BILL-920\n- `jira-quota` (jira) observed 2026-08-11T08:00:00.000Z, source updated 2026-08-11T08:00:00.000Z — https://demo.atlassian.net/browse/QUOTA-311\n- `jira-campaign` (jira) observed 2026-08-11T08:00:00.000Z, source updated 2026-08-11T08:00:00.000Z — https://demo.atlassian.net/browse/CMP-188\n- `confluence-sync` (confluence) observed 2026-08-07T15:00:00.000Z, source updated 2026-08-07T15:00:00.000Z — https://demo.atlassian.net/wiki/spaces/PLAT/pages/2026-08-07\n- `local-status` (local) observed 2026-08-10T18:00:00.000Z, source updated 2026-08-10T18:00:00.000Z\n"
     }
-  }
+  },
+  "factsOnly": {
+    "kind": "status_artifact",
+    "schema_version": "2.0.0",
+    "as_of": "2026-08-11T00:00:00.000Z",
+    "initiative": {
+      "name": "Checkout migration launch readiness",
+      "owner": "Platform TPM",
+      "objective": "Ship the checkout migration on time with verifiable readiness."
+    },
+    "policy": {
+      "max_observation_age_days": 14,
+      "max_source_content_age_days": 14
+    },
+    "sources": [
+      {
+        "id": "release-status",
+        "type": "status-note",
+        "url": "https://example.com/status/checkout-release",
+        "observed_at": "2026-08-10T09:00:00.000Z",
+        "source_updated_at": "2026-08-10T09:00:00.000Z"
+      }
+    ],
+    "claims": [
+      {
+        "id": "release-ready",
+        "kind": "fact",
+        "state": "active",
+        "subject": "release.ready",
+        "value": false,
+        "text": "Release readiness is false.",
+        "source_refs": [
+          {
+            "source_id": "release-status",
+            "locator": "https://example.com/status/checkout-release"
+          }
+        ]
+      }
+    ]
+  },
+  "factsOnlyReview": {
+    "kind": "truth_review",
+    "schema_version": "2.0.0",
+    "initiative": {
+      "name": "Checkout migration launch readiness",
+      "owner": "Platform TPM",
+      "objective": "Ship the checkout migration on time with verifiable readiness."
+    },
+    "as_of": "2026-08-11T00:00:00.000Z",
+    "policy": {
+      "max_observation_age_days": 14,
+      "max_source_content_age_days": 14
+    },
+    "artifact_quality": "needs_review",
+    "reported_program_health": null,
+    "claim_health_floor": "none",
+    "program_health": "unknown",
+    "health_consistency": "missing",
+    "summary": {
+      "sources": 1,
+      "claims": 1,
+      "facts": 1,
+      "blockers": 0,
+      "risks": 0,
+      "unknowns": 0,
+      "conflicts": 0,
+      "issues": 1,
+      "deprecations": 0
+    },
+    "sources": [
+      {
+        "id": "release-status",
+        "type": "status-note",
+        "url": "https://example.com/status/checkout-release",
+        "observed_at": "2026-08-10T09:00:00.000Z",
+        "source_updated_at": "2026-08-10T09:00:00.000Z"
+      }
+    ],
+    "claims": [
+      {
+        "id": "release-ready",
+        "kind": "fact",
+        "state": "active",
+        "subject": "release.ready",
+        "value": false,
+        "text": "Release readiness is false.",
+        "source_refs": [
+          {
+            "source_id": "release-status",
+            "locator": "https://example.com/status/checkout-release"
+          }
+        ]
+      }
+    ],
+    "findings": {
+      "facts": [
+        {
+          "id": "release-ready",
+          "kind": "fact",
+          "state": "active",
+          "subject": "release.ready",
+          "value": false,
+          "text": "Release readiness is false.",
+          "source_refs": [
+            {
+              "source_id": "release-status",
+              "locator": "https://example.com/status/checkout-release"
+            }
+          ]
+        }
+      ],
+      "blockers": [],
+      "risks": [],
+      "unknowns": [],
+      "conflicts": [],
+      "issues": [
+        {
+          "type": "missing_health_assessment",
+          "severity": "review",
+          "location": "health_assessment",
+          "message": "Add an explicit health assessment with state, owner, rationale, and cited source references; facts alone do not establish on_track health."
+        }
+      ],
+      "deprecations": []
+    },
+    "recommended_actions": [
+      {
+        "priority": "P2",
+        "type": "improve_evidence",
+        "action": "Add an explicit health assessment with state, owner, rationale, and cited source references; facts alone do not establish on_track health.",
+        "location": "health_assessment"
+      }
+    ]
+  },
+  "factsOnlyReport": "# Truth Review: Checkout migration launch readiness\n\n**Artifact quality:** needs\\_review\n**Program health:** unknown\n**Reported health:** missing\n**Claim health floor:** none\n**Health consistency:** missing\n**As of:** 2026-08-11T00:00:00.000Z\n\n## Scorecard\n\n| Sources | Claims | Facts | Blockers | Risks | Unknowns | Conflicts | Evidence issues | Deprecations |\n| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n| 1 | 1 | 1 | 0 | 0 | 0 | 0 | 1 | 0 |\n\n## Facts\n\n- **`release-ready`:** Release readiness is false. Sources: `release-status`.\n\n## Blockers\n\n- None.\n\n## Risks\n\n- None.\n\n## Unknowns\n\n- None.\n\n## Conflicts\n\n- None.\n\n## Evidence Issues\n\n- **REVIEW — missing\\_health\\_assessment** at `health\\_assessment`: Add an explicit health assessment with state, owner, rationale, and cited source references; facts alone do not establish on\\_track health.\n\n## Deprecations\n\n- None.\n\n## Next Actions\n\n- **P2** Add an explicit health assessment with state, owner, rationale, and cited source references; facts alone do not establish on\\_track health.\n\n## Evidence\n\n- `release-status` (status-note) observed 2026-08-10T09:00:00.000Z, source updated 2026-08-10T09:00:00.000Z — https://example.com/status/checkout-release\n"
 };

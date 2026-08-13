@@ -60,5 +60,5 @@ repository commands.
 
 ## Deleting
 
-The current package release is `0.3.1`; package retirement and deprecation are
+The current package release is `0.4.0`; package retirement and deprecation are
 npm-side decisions, not repository settings.

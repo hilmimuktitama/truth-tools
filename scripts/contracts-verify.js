@@ -4,6 +4,7 @@ import {
   ARTIFACT_QUALITY_VALUES,
   CLAIM_KINDS,
   CLAIM_STATES,
+  CANDIDATE_REVIEW_STATUSES,
   CONTRACT_NAMES,
   EVIDENCE_GRADES,
   DATE_DERIVATIONS,
@@ -94,6 +95,7 @@ function runChecks(check) {
   parityEnum(contracts["truth-review"], "program_health", PROGRAM_HEALTH_VALUES, "parity:program_health");
   // CandidateClaim is capture output only and carries no final kind; the
   // reviewed Claim schema is the parity anchor for kinds and states.
+  parityEnum(contracts["candidate-claim"], "review_status", CANDIDATE_REVIEW_STATUSES, "parity:candidate-review-status");
   parityEnum(contracts["claim"], "kind", CLAIM_KINDS, "parity:claim-kind");
   parityEnum(contracts["claim"], "state", CLAIM_STATES, "parity:claim-state");
   parityEnum(contracts["timeline-item"], "type", TIMELINE_TYPES, "parity:timeline-type");
@@ -103,8 +105,9 @@ function runChecks(check) {
     "contract:candidate-claim-is-capture-only",
     contracts["candidate-claim"].properties.kind === undefined &&
       contracts["candidate-claim"].properties.classification_method.const === "keyword" &&
-      contracts["candidate-claim"].properties.review_status.const === "unreviewed",
-    "candidate claims carry no final kind and are always keyword/unreviewed"
+      JSON.stringify(contracts["candidate-claim"].properties.review_status.enum) === JSON.stringify(CANDIDATE_REVIEW_STATUSES) &&
+      contracts["candidate-claim"].allOf?.some((entry) => entry.if?.properties?.review_status?.enum?.includes("approved_for_portable")) === true,
+    "candidate claims carry no final kind, are keyword-classified, and use Capture Truth 0.5 review states"
   );
   const candidateClaim = validateContract("candidate-claim", {
     id: "candidate-1",
@@ -112,15 +115,29 @@ function runChecks(check) {
     classification_method: "keyword",
     review_status: "unreviewed",
     source_refs: [{ source_id: "cap-1", locator: "https://example.com/cap-1" }],
-    derivation_version: "0.4.1",
+    derivation_version: "0.5.0",
     source_material: "metadata"
   });
   check("conformance:candidate-claim-final-schema", candidateClaim.valid, firstErrors(candidateClaim.errors));
+  for (const review_status of ["approved_for_portable", "rejected"]) {
+    const reviewedCandidate = validateContract("candidate-claim", {
+      id: `candidate-${review_status}`,
+      text: "Candidate text.",
+      classification_method: "keyword",
+      review_status,
+      reviewed_by: "Ada",
+      reviewed_at: "2026-08-13T12:00:00Z",
+      source_refs: [{ source_id: "cap-1", locator: "https://example.com/cap-1" }],
+      derivation_version: "0.5.0",
+      source_material: "metadata"
+    });
+    check(`conformance:candidate-claim-${review_status}`, reviewedCandidate.valid, firstErrors(reviewedCandidate.errors));
+  }
   check(
     "contract:status-artifact-kind-version",
     contracts["status-artifact"].properties.kind.const === "status_artifact" &&
-      contracts["status-artifact"].properties.schema_version.const === "1.0.0",
-    "status artifact is stamped with kind status_artifact and schema_version 1.0.0"
+      contracts["status-artifact"].properties.schema_version.const === "2.0.0",
+     "status artifact is stamped with kind status_artifact and schema_version 2.0.0"
   );
   check(
     "contract:source-ref-requires-locator",
@@ -158,16 +175,21 @@ function runChecks(check) {
       sourceRefProps.tableRow?.minimum === 1 &&
       sourceRefProps.line?.type === "integer" &&
       sourceRefProps.line?.minimum === 1 &&
-      sourceRefProps.text?.type === "string" &&
+       sourceRefProps.text === undefined &&
       contracts["source-ref"].required.includes("source_id") &&
       contracts["source-ref"].required.includes("locator"),
-    "SourceRef allows optional Timeline Truth provenance (heading, tableRow, line, text) while still requiring source_id and locator"
+     "SourceRef allows structured Timeline Truth provenance while still requiring source_id and locator"
   );
   check(
     "contract:claims-reference-claim-not-candidate",
     contracts["status-artifact"].properties.claims.items.$ref === "https://truth-tools.dev/schemas/claim.schema.json",
     "StatusArtifact.claims references the reviewed Claim schema"
   );
+    check(
+      "evaluation:private-harness-syntax",
+      typeof readFileSync(new URL("../evaluation/real-world/run-private-evaluation.js", import.meta.url), "utf8") === "string",
+      "private harness is under evaluation/real-world"
+    );
 
   // 4. The launch-readiness fixtures: the fixed artifact must validate, the broken one must not.
   const fixedArtifact = readJson("../examples/launch-readiness/evidence-pack.json");
@@ -200,8 +222,7 @@ function runChecks(check) {
     locator: "https://example.com/jira/CAP-1",
     heading: "Status",
     tableRow: 3,
-    line: 12,
-    text: "In Progress"
+    line: 12
   });
   const rawBodySource = validateContract("source", {
     id: "cap-1",

@@ -2,6 +2,9 @@
 
 **Artifact quality:** pass
 **Program health:** blocked
+**Reported health:** blocked
+**Claim health floor:** blocked
+**Health consistency:** consistent
 **As of:** 2026-08-11T00:00:00.000Z
 
 ## Scorecard

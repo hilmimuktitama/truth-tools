@@ -50,29 +50,45 @@ function jsonFile(relativePath) {
 // The browser must never receive raw source bodies, even synthetic ones.
 // Fixtures that deliberately contain raw bodies for engine testing are
 // stripped before embedding; the review output still reports the finding.
-function stripRawBodies(value) {
-  if (Array.isArray(value)) return value.map(stripRawBodies);
+function normalizedKey(key) {
+  return String(key).replace(/([a-z])([A-Z])/g, "$1_$2").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+}
+
+function isRawAlias(key) {
+  return RAW_SOURCE_KEYS.has(normalizedKey(key));
+}
+
+export function stripRawBodies(value, context = "root") {
+  if (Array.isArray(value)) return value.map((entry) => stripRawBodies(entry, context === "sources" ? "source" : context));
   if (value && typeof value === "object") {
     const out = {};
     for (const [key, entry] of Object.entries(value)) {
-      if (RAW_SOURCE_KEYS.has(key)) continue;
-      out[key] = stripRawBodies(entry);
+      const normalized = normalizedKey(key);
+      const childContext = context === "source" || context === "metadata" || context === "sources" || normalized === "sources"
+        ? (normalized === "sources" ? "sources" : normalized === "fields" || normalized === "metadata" ? "metadata" : "source")
+        : "root";
+      if ((context === "source" || context === "metadata") && isRawAlias(key)) continue;
+      out[key] = stripRawBodies(entry, childContext);
     }
     return out;
   }
   return value;
 }
 
-function findRawBodies(value, path = "$") {
+export function findRawBodies(value, path = "$", context = "root") {
   const hits = [];
   if (Array.isArray(value)) {
-    value.forEach((entry, index) => hits.push(...findRawBodies(entry, `${path}[${index}]`)));
+    value.forEach((entry, index) => hits.push(...findRawBodies(entry, `${path}[${index}]`, context === "sources" ? "source" : context)));
     return hits;
   }
   if (value && typeof value === "object") {
     for (const [key, entry] of Object.entries(value)) {
-      if (RAW_SOURCE_KEYS.has(key)) hits.push(`${path}.${key}`);
-      else hits.push(...findRawBodies(entry, `${path}.${key}`));
+      const normalized = normalizedKey(key);
+      const childContext = context === "source" || context === "metadata" || context === "sources" || normalized === "sources"
+        ? (normalized === "sources" ? "sources" : normalized === "fields" || normalized === "metadata" ? "metadata" : "source")
+        : "root";
+      if ((context === "source" || context === "metadata") && isRawAlias(key)) hits.push(`${path}.${key}`);
+      else hits.push(...findRawBodies(entry, `${path}.${key}`, childContext));
     }
   }
   return hits;
@@ -91,7 +107,30 @@ export function requireSiblings() {
 }
 
 export function readProgramArtifact() {
-  return readJsonFile(siblingUrls().program);
+  return mapProgramArtifact(readJsonFile(siblingUrls().program));
+}
+
+function canonicalizeProgramArtifact(program) {
+  if (!program || typeof program !== "object" || Array.isArray(program)) return program;
+  if (program.kind !== "status_artifact" || program.schema_version !== "1.0.0") return structuredClone(program);
+
+  const artifact = structuredClone(program);
+  const activeClaims = (artifact.claims ?? []).filter((claim) => claim.state !== "superseded" && claim.state !== "historical");
+  const state = activeClaims.some((claim) => claim.kind === "blocker")
+    ? "blocked"
+    : activeClaims.some((claim) => claim.kind === "risk" || claim.kind === "unknown")
+      ? "at_risk"
+      : "on_track";
+  const source = (artifact.sources ?? []).find((item) => item.id && (item.locator || item.url || item.path));
+  const locator = source?.locator ?? source?.url ?? source?.path ?? `source:${source?.id ?? "program"}`;
+  artifact.schema_version = "2.0.0";
+  artifact.health_assessment = {
+    state,
+    owner: artifact.initiative?.owner ?? "Program Operator",
+    rationale: "Canonical v2 projection of the checked-in Program Truth status artifact.",
+    source_refs: [{ source_id: source?.id ?? "program", locator }]
+  };
+  return artifact;
 }
 
 // Load real sibling components, or the checked-in public-safe projection when
@@ -107,6 +146,11 @@ export async function loadSiblings() {
     const program = readJsonFile(urls.program);
     if (typeof capture.createEvidencePack !== "function" || typeof timelineMod.createTimeline !== "function" ||
         typeof diffMod.diffTimelines !== "function" || !program) throw new Error("incompatible Truth Suite sibling");
+    if (program.schema_version === "1.0.0") {
+      const { TRUTH_DEMO } = await import("../apps/demo/data.js");
+      if (!TRUTH_DEMO.sibling) throw new Error("checked-in sibling fixture projection is missing");
+      return { mode: "fixture", sibling: structuredClone(TRUTH_DEMO.sibling), reason: "Program Truth v2 example unavailable; using checked-in canonical fixture projection" };
+    }
     return { mode: "live", capture, timelineMod, diffMod, program };
   } catch (error) {
     if (requireSiblings()) throw new Error(`Truth Suite siblings unavailable under ${resolveComponentRoot()}: ${error.message}`);
@@ -121,17 +165,40 @@ function candidateClaims(result) {
       result.candidate_claims.some((claim) => claim.review_status !== "unreviewed")) {
     throw new Error("incompatible Capture Truth evidence pack: candidate claims must be unreviewed");
   }
-  return result.candidate_claims;
+  return result.candidate_claims.map((claim) => {
+    const safe = { ...claim };
+    // Candidate text is extraction output, not portable browser evidence.
+    delete safe.text;
+    delete safe.raw_body;
+    delete safe.mixed;
+    if (safe.source_material !== "metadata" && safe.source_material !== "structured_fields") {
+      safe.source_material = "metadata";
+    }
+    return safe;
+  });
 }
 
 function normalizeSiblingProjection(sibling) {
+  // Fixture projections are imported from the checked-in browser payload.
+  // Normalize a detached copy so optional sibling mode can never mutate the
+  // module-owned projection (or any nested capture/timeline data).
+  const projection = structuredClone(sibling);
+  const programArtifact = canonicalizeProgramArtifact(projection.program?.artifact);
+  const programReview = programArtifact ? reviewTruth(programArtifact) : null;
   return {
-    ...sibling,
+    ...projection,
     capture: {
-      ...sibling.capture,
-      candidate_claims: candidateClaims(sibling.capture),
-      diagnostics: sibling.capture.diagnostics ?? {}
-    }
+      ...projection.capture,
+      candidate_claims: candidateClaims(projection.capture),
+      diagnostics: projection.capture.diagnostics ?? {}
+    },
+    ...(programArtifact ? {
+      program: {
+        artifact: programArtifact,
+        review: programReview,
+        report: renderReviewMarkdown(programReview)
+      }
+    } : {})
   };
 }
 
@@ -142,7 +209,7 @@ function programTimestamp(value, fallback = DEMO_AS_OF) {
 }
 
 // Maps a Program Truth status artifact into a Truth Tools status artifact
-// (kind: "status_artifact", schema_version: "1.0.0"). Program Truth now emits
+  // (kind: "status_artifact", schema_version: "2.0.0"). Program Truth now emits
 // the canonical shape directly, so it is passed through byte-for-byte with a
 // structured clone (the review engine owns validation). The legacy pre-canonical
 // shape (facts/blockers/risks/unknowns with per-claim source systems) is still
@@ -151,8 +218,8 @@ export function mapProgramArtifact(program) {
   if (!program || typeof program !== "object" || Array.isArray(program)) {
     throw new Error("Program Truth status artifact must be a JSON object.");
   }
-  if (program.kind === "status_artifact" && program.schema_version === "1.0.0") {
-    return structuredClone(program);
+  if (program.kind === "status_artifact" && ["1.0.0", "2.0.0"].includes(program.schema_version)) {
+    return program.schema_version === "1.0.0" ? canonicalizeProgramArtifact(program) : structuredClone(program);
   }
 
   const groups = [
@@ -194,7 +261,7 @@ export function mapProgramArtifact(program) {
   });
   return {
     kind: "status_artifact",
-    schema_version: "1.0.0",
+    schema_version: "2.0.0",
     as_of: programTimestamp(program.generated_at),
     initiative: {
       name: program.initiative?.name ?? "Program Truth status",
@@ -202,7 +269,13 @@ export function mapProgramArtifact(program) {
     },
     policy: { max_observation_age_days: 14, max_source_content_age_days: 14 },
     sources,
-    claims
+    claims,
+    health_assessment: {
+      state: claims.some((claim) => claim.kind === "blocker") ? "blocked" : "on_track",
+      owner: "Program Operator",
+      rationale: "Mapped from the canonical Program Truth status artifact.",
+      source_refs: sources[0]?.locator ? [{ source_id: sources[0].id, locator: sources[0].locator }] : []
+    }
   };
 }
 
@@ -229,7 +302,24 @@ export async function siblingSections() {
   const diffResult = diffMod.diffTimelines({ items: baseline.timeline }, { items: current.timeline });
   const artifact = mapProgramArtifact(program);
   const programReview = reviewTruth(artifact);
-
+  if (process.env.TRUTH_DEBUG_PROJECTION === "1") {
+    const expected = (await import("../apps/demo/data.js")).TRUTH_DEMO.sibling;
+    const actual = {
+      capture: {
+        kind: captureResult.kind,
+        schema_version: captureResult.schema_version,
+        generated_at: captureResult.generated_at,
+        sources: captureResult.sources.map((source) => ({ id: source.id, type: source.type, observed_at: source.observed_at, locator: source.locator, content_hash: source.content_hash, raw_included: source.raw_included })),
+        candidate_claims: candidateClaims(captureResult),
+        diagnostics: captureResult.diagnostics,
+        summary: captureResult.summary
+      },
+      timeline: timelineResult.timeline,
+      diff: diffResult,
+      program: { artifact, review: programReview, report: renderReviewMarkdown(programReview) }
+    };
+    process.stderr.write(`debug lengths ${JSON.stringify(actual).length}/${JSON.stringify(expected).length}\n`);
+  }
   return {
     capture: {
       kind: captureResult.kind,
@@ -258,11 +348,13 @@ export async function siblingSections() {
 export async function demoPayload() {
   const broken = readJson("status-artifact-broken.json");
   const fixed = readJson("evidence-pack.json");
+  const factsOnly = readJson("status-artifact-facts-only.json");
   const baseline = readJson("baseline-plan.json");
   const current = readJson("current-plan.json");
 
   const brokenReview = reviewTruth(broken);
   const fixedReview = reviewTruth(fixed);
+  const factsOnlyReview = reviewTruth(factsOnly);
   const drift = timelineDiff(baseline.timeline, current.timeline);
   const sibling = await siblingSections();
 
@@ -279,7 +371,10 @@ export async function demoPayload() {
     current,
     drift,
     driftMarkdown: renderTimelineDriftMarkdown(drift),
-    ...(sibling ? { sibling } : {})
+    ...(sibling ? { sibling } : {}),
+    factsOnly: stripRawBodies(factsOnly),
+    factsOnlyReview,
+    factsOnlyReport: renderReviewMarkdown(factsOnlyReview)
   };
 }
 
@@ -290,6 +385,7 @@ export async function runDemo({ write = false, verbose = true } = {}) {
   const broken = readJson("status-artifact-broken.json");
   const fixedArtifact = readJson("evidence-pack.json");
   const fixedCopy = readJson("status-artifact-fixed.json");
+  const factsOnly = readJson("status-artifact-facts-only.json");
   const baseline = readJson("baseline-plan.json");
   const current = readJson("current-plan.json");
 
@@ -317,6 +413,7 @@ export async function runDemo({ write = false, verbose = true } = {}) {
 
   const brokenReview = reviewTruth(broken);
   const fixedReview = reviewTruth(fixedArtifact);
+  const factsOnlyReview = reviewTruth(factsOnly);
 
   step(
     "engine:broken-is-fail-and-blocked",
@@ -324,15 +421,47 @@ export async function runDemo({ write = false, verbose = true } = {}) {
     `got ${brokenReview.artifact_quality}/${brokenReview.program_health}`
   );
   step(
-    "engine:fixed-is-pass-and-blocked",
-    fixedReview.artifact_quality === "pass" && fixedReview.program_health === "blocked",
+    "engine:fixed-is-pass-and-blocked-consistent",
+    fixedReview.artifact_quality === "pass" && fixedReview.program_health === "blocked" && fixedReview.health_consistency === "consistent",
     `got ${fixedReview.artifact_quality}/${fixedReview.program_health}`
+  );
+  step(
+    "engine:facts-only-is-needs-review-and-unknown",
+    factsOnlyReview.artifact_quality === "needs_review" &&
+      factsOnlyReview.reported_program_health === null &&
+      factsOnlyReview.claim_health_floor === "none" &&
+      factsOnlyReview.program_health === "unknown" &&
+      factsOnlyReview.health_consistency === "missing" &&
+      factsOnlyReview.findings.issues.length === 1 &&
+      factsOnlyReview.findings.issues[0].type === "missing_health_assessment",
+    `got ${factsOnlyReview.artifact_quality}/${factsOnlyReview.reported_program_health}/${factsOnlyReview.claim_health_floor}/${factsOnlyReview.program_health}/${factsOnlyReview.health_consistency}`
+  );
+  step(
+    "fixture:facts-only-exact-claim",
+    factsOnly.kind === "status_artifact" &&
+      factsOnly.schema_version === "2.0.0" &&
+      factsOnly.health_assessment === undefined &&
+      factsOnly.claims.length === 1 &&
+      factsOnly.claims[0].kind === "fact" &&
+      factsOnly.claims[0].subject === "release.ready" &&
+      factsOnly.claims[0].value === false &&
+      !factsOnly.claims.some((claim) => ["blocker", "risk", "unknown"].includes(claim.kind)),
+    "facts-only must contain exactly the release.ready=false fact and no health signal claims"
+  );
+  const factsOnlyReport = renderReviewMarkdown(factsOnlyReview);
+  step(
+    "fixture:facts-only-no-raw-or-source-ref-text",
+    !/raw source|source_ref/i.test(factsOnlyReport) &&
+      !factsOnly.claims.some((claim) => /raw source|source_ref/i.test(claim.text)),
+    "facts-only report and claim text must not expose raw/source-ref text"
   );
 
   const brokenJson = `${JSON.stringify(brokenReview, null, 2)}\n`;
   const fixedJson = `${JSON.stringify(fixedReview, null, 2)}\n`;
+  const factsOnlyJson = `${JSON.stringify(factsOnlyReview, null, 2)}\n`;
   const brokenMd = renderReviewMarkdown(brokenReview);
   const fixedMd = renderReviewMarkdown(fixedReview);
+  const factsOnlyMd = factsOnlyReport;
 
   const drift = timelineDiff(baseline.timeline, current.timeline);
   const driftJson = `${JSON.stringify(drift, null, 2)}\n`;
@@ -379,6 +508,8 @@ export async function runDemo({ write = false, verbose = true } = {}) {
     writeFileSync(new URL("truth-review-broken.md", EXAMPLES), brokenMd);
     writeFileSync(new URL("truth-review-fixed.json", EXAMPLES), fixedJson);
     writeFileSync(new URL("truth-review-fixed.md", EXAMPLES), fixedMd);
+    writeFileSync(new URL("truth-review-facts-only.json", EXAMPLES), factsOnlyJson);
+    writeFileSync(new URL("truth-review-facts-only.md", EXAMPLES), factsOnlyMd);
     writeFileSync(new URL("timeline-drift.json", EXAMPLES), driftJson);
     writeFileSync(new URL("timeline-drift.md", EXAMPLES), driftMd);
     writeFileSync(DATA_URL, `${DATA_HEADER}export const TRUTH_DEMO = ${JSON.stringify(payload, null, 2)};\n`);
@@ -386,13 +517,25 @@ export async function runDemo({ write = false, verbose = true } = {}) {
     step("write:reports", true, "regenerated review reports and timeline drift");
     step("write:demo-data", true, "regenerated apps/demo/data.js and dist");
   } else if (write && !live) {
-    step("write:demo-data", true, "fixture fallback verified; checked-in sibling projection was not overwritten");
+    writeFileSync(new URL("truth-review-broken.json", EXAMPLES), brokenJson);
+    writeFileSync(new URL("truth-review-broken.md", EXAMPLES), brokenMd);
+    writeFileSync(new URL("truth-review-fixed.json", EXAMPLES), fixedJson);
+    writeFileSync(new URL("truth-review-fixed.md", EXAMPLES), fixedMd);
+    writeFileSync(new URL("truth-review-facts-only.json", EXAMPLES), factsOnlyJson);
+    writeFileSync(new URL("truth-review-facts-only.md", EXAMPLES), factsOnlyMd);
+    writeFileSync(new URL("timeline-drift.json", EXAMPLES), driftJson);
+    writeFileSync(new URL("timeline-drift.md", EXAMPLES), driftMd);
+    writeFileSync(DATA_URL, `${DATA_HEADER}export const TRUTH_DEMO = ${JSON.stringify(payload, null, 2)};\n`);
+    buildDemo({ verbose: false });
+    step("write:demo-data", true, "regenerated reports, demo data, and dist from fixture projection");
   }
 
   step("drift:broken-json", jsonFile("truth-review-broken.json") === brokenJson);
   step("drift:broken-md", jsonFile("truth-review-broken.md") === brokenMd);
   step("drift:fixed-json", jsonFile("truth-review-fixed.json") === fixedJson);
   step("drift:fixed-md", jsonFile("truth-review-fixed.md") === fixedMd);
+  step("drift:facts-only-json", jsonFile("truth-review-facts-only.json") === factsOnlyJson);
+  step("drift:facts-only-md", jsonFile("truth-review-facts-only.md") === factsOnlyMd);
   step("drift:timeline-drift-json", jsonFile("timeline-drift.json") === driftJson);
   step("drift:timeline-drift-md", jsonFile("timeline-drift.md") === driftMd);
 
@@ -408,6 +551,13 @@ export async function runDemo({ write = false, verbose = true } = {}) {
       "demo:data-synced",
       JSON.stringify(payload) === JSON.stringify(demoData.TRUTH_DEMO),
       "apps/demo/data.js must mirror the fixtures, reviews, drift, and sibling sections"
+    );
+    step(
+      "demo:facts-only-synced",
+      JSON.stringify(payload.factsOnly) === JSON.stringify(demoData.TRUTH_DEMO.factsOnly) &&
+        JSON.stringify(payload.factsOnlyReview) === JSON.stringify(demoData.TRUTH_DEMO.factsOnlyReview) &&
+        payload.factsOnlyReport === demoData.TRUTH_DEMO.factsOnlyReport,
+      `facts-only artifact/review/report sync: ${JSON.stringify(payload.factsOnly) === JSON.stringify(demoData.TRUTH_DEMO.factsOnly)}/${JSON.stringify(payload.factsOnlyReview) === JSON.stringify(demoData.TRUTH_DEMO.factsOnlyReview)}/${payload.factsOnlyReport === demoData.TRUTH_DEMO.factsOnlyReport}`
     );
     const rawHits = findRawBodies(payload);
     step(
@@ -427,7 +577,7 @@ export async function runDemo({ write = false, verbose = true } = {}) {
     console.log(`Truth Tools demo: ${steps.length - failed.length}/${steps.length} checks passed`);
     for (const item of steps) console.log(`  ${item.ok ? "ok" : "FAIL"}  ${item.name}${item.detail ? ` — ${item.detail}` : ""}`);
     console.log("");
-    console.log("Story: broken evidence is FAIL + BLOCKED; fixed evidence is PASS + BLOCKED.");
+   console.log("Story: broken evidence is FAIL + BLOCKED; fixed evidence is PASS + BLOCKED + CONSISTENT.");
     console.log("Quality and health are independent dimensions: evidence structure vs program state.");
     console.log("Sibling components: capture-truth normalizes sources, timeline-truth builds/diffs plans,");
     console.log("and Program Truth's canonical artifact reviews PASS + BLOCKED through the same engine.");

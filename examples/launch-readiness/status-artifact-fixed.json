@@ -1,6 +1,6 @@
 {
   "kind": "status_artifact",
-  "schema_version": "1.0.0",
+  "schema_version": "2.0.0",
   "as_of": "2026-08-11T00:00:00.000Z",
   "initiative": {
     "name": "Checkout migration launch readiness",
@@ -10,6 +10,12 @@
   "policy": {
     "max_observation_age_days": 14,
     "max_source_content_age_days": 14
+  },
+  "health_assessment": {
+    "state": "blocked",
+    "owner": "Platform TPM",
+    "rationale": "The rollback blocker remains active pending accountable ownership and resolution date.",
+    "source_refs": [{ "source_id": "risk-review", "locator": "https://example.com/notes/risk-review" }]
   },
   "sources": [
     {

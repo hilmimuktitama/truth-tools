@@ -1,6 +1,6 @@
-# Product reset — 0.3.1
+# Product reset — 0.4.0
 
-This document records the 0.3 reset and 0.3.1 hardening, and how the
+This document records the 0.4 reset and 0.4.0 hardening, and how the
 flagship product is scoped. It complements the review that drove the reset
 (`docs/product-review.md`).
 
@@ -16,7 +16,7 @@ publication. It is not a source connector and not an LLM judge.
 
 ## What changed
 
-| Dimension | 0.2.x (legacy umbrella) | 0.3.1 current line |
+| Dimension | 0.2.x (legacy umbrella) | 0.4.0 current line |
 | --- | --- | --- |
 | MCP surface | Nine tools across capture/timeline/program/rendering | Two tools: `truth.review`, `truth.doctor` |
 | Review verdict | Single `readiness` value | `artifact_quality` (pass/needs_review/fail) and `program_health` (on_track/at_risk/blocked/unknown) |
@@ -59,3 +59,9 @@ supplied artifact. It does not prove that a source supports a claim, that a
 URL is real, or that an upstream agent extracted the claim faithfully. The
 evaluation harness measures the engine against its own specification; it does
 not measure real-world effectiveness (see `docs/evaluation.md`).
+# Product reset
+
+Truth Tools is a deterministic, metadata-only review engine. It does not
+fetch sources, authenticate, store bodies, infer claim kinds, or claim that a
+program is healthy. It reports artifact quality separately from explicit
+program health and keeps the source-system body outside the portable artifact.

@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/hilmimuktitama/truth-tools/actions/workflows/ci.yml/badge.svg)](https://github.com/hilmimuktitama/truth-tools/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-> **Release status:** `0.3.1` is published from the exact version tag through
+> **Release status:** `0.4.0` is published from the exact version tag through
 > the trusted release workflow. See GitHub Releases and npm for the latest release.
 
 Truth Tools is a **deterministic evidence gate** for project-status
@@ -16,6 +16,8 @@ unknowns must stay explicit — and returns two independent verdicts:
 - **`program_health`**: `on_track` | `at_risk` | `blocked` | `unknown` — what
   do the claims say about the program?
 
+Truth Tools is an evidence-first technical-program reliability toolkit combining provenance-preserving evidence intake, defensible timeline compilation, agent-guided status synthesis, and deterministic pre-publication review.
+
 It does **not** read source bodies, fetch URLs, or decide what is true. An
 agent, adapter, or human supplies structured claims and citations; Truth
 Tools checks whether that artifact has an obvious evidence gap or
@@ -28,7 +30,7 @@ ticket says green, a decision log names another date, a meeting note has an
 unresolved blocker, and the final status quietly picks whichever version is
 convenient.
 
-The 0.3 reset also fixed a flaw in its own plan: a single `readiness` value
+The 0.4 reset also fixed a flaw in its own plan: a single `readiness` value
 conflated "is the evidence sound?" with "is the program OK?". Those are
 different questions. The flagship demo is built on the corrected pair:
 
@@ -80,7 +82,7 @@ See the [portfolio case study](docs/portfolio.md), the
 The package command is:
 
 ```bash
-npm exec --yes --package truth-tools@0.3.1 -- \
+ npm exec --yes --package truth-tools@0.4.0 -- \
   truth-tools review --input status.json
 ```
 
@@ -92,7 +94,7 @@ stop conditions, and verification gates are in the
 in [docs/release-process.md](docs/release-process.md).
 
 Maintainers merge the release commit to `main`, wait for CI, tag that exact
-main commit (`v0.3.1`), and create a GitHub Release from the tag. Publishing the
+main commit (`v0.4.0`), and create a GitHub Release from the tag. Publishing the
 release starts the trusted `release.published` workflow, which checks out the
 tag, runs the full gates, publishes only the root package with npm provenance,
 and then the maintainer verifies the provenance and published package. Manual
@@ -110,7 +112,7 @@ locale-dependent or timezone-free dates are rejected.
 ```json
 {
   "kind": "status_artifact",
-  "schema_version": "1.0.0",
+      "schema_version": "2.0.0",
   "as_of": "2026-08-11T00:00:00.000Z",
   "initiative": {
     "name": "Checkout migration",
@@ -129,6 +131,12 @@ locale-dependent or timezone-free dates are rejected.
       "source_updated_at": "2026-08-10T08:00:00.000Z"
     }
   ],
+  "health_assessment": {
+    "state": "on_track",
+    "owner": "Platform TPM",
+    "rationale": "The cited launch-date evidence supports the current assessment.",
+    "source_refs": [{ "source_id": "jira-release", "locator": "https://example.atlassian.net/browse/PLAT-123" }]
+  },
   "claims": [
     {
       "id": "launch-date",
@@ -161,9 +169,11 @@ from the normalized output. Two provenance extensions are accepted:
   record. It is preserved on the source and is never treated as a body
   itself.
 - `source_refs[]` Timeline Truth provenance fields — `heading` (string),
-  `tableRow` and `line` (positive integers), and `text` (string) locate the
-  evidence inside the source. They are passed through unchanged and never
-  relax the required `source_id` + `locator` contract.
+  `tableRow` and `line` (positive integers) locate the evidence inside the
+  source. Truth Tools' canonical SourceRef deliberately excludes `text`:
+  source references carry locators and metadata, never
+  verbatim source text, and never relax the required `source_id` + `locator`
+  contract.
 
 The browser demo displays raw-inclusion state and Timeline Truth provenance
 while still stripping actual bodies from the shipped data.
@@ -177,6 +187,16 @@ while still stripping actual bodies from the shipped data.
 
 Classification is explicit. Truth Tools never labels a sentence as a fact
 just because it does not contain the word "risk" or "blocked".
+
+### Capture Truth CandidateClaim
+
+The shared CandidateClaim contract follows Capture Truth 0.5.0. Candidate
+claims carry enumerable extraction metadata (`classification_method`,
+`derivation_version`, and `source_material`) and use `review_status` values
+`unreviewed`, `approved_for_portable`, or `rejected`. Extraction emits
+`unreviewed` without reviewer metadata; approved or rejected candidates must
+carry nonempty `reviewed_by` and RFC3339 `reviewed_at`. CandidateClaim never
+contains a final `kind`, and SourceRef never contains source text.
 
 ### Contradictions
 
@@ -251,7 +271,7 @@ Use the package binary:
   "mcpServers": {
     "truth-tools": {
       "command": "npx",
-      "args": ["-y", "--package=truth-tools@0.3.1", "truth-tools-mcp"]
+      "args": ["-y", "--package=truth-tools@0.4.0", "truth-tools-mcp"]
     }
   }
 }

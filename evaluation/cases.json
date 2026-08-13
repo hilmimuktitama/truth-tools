@@ -2,6 +2,7 @@
   "version": "1.0.0",
   "description": "Hand-written synthetic cases covering the artifact_quality and program_health policy matrix. Each case is a full StatusArtifact input with an exact expected outcome. Run with npm run eval.",
   "base": {
+    "schema_version": "2.0.0",
     "as_of": "2026-08-11T00:00:00.000Z",
     "initiative": { "name": "Evaluation case" },
     "policy": { "max_observation_age_days": 14, "max_source_content_age_days": 14 },
@@ -9,6 +10,12 @@
       { "id": "s1", "type": "jira", "observed_at": "2026-08-10T00:00:00.000Z" },
       { "id": "s2", "type": "note", "observed_at": "2026-08-09T00:00:00.000Z" }
     ],
+    "health_assessment": {
+      "state": "on_track",
+      "owner": "Platform TPM",
+      "rationale": "The active claims are facts only.",
+      "source_refs": [{ "source_id": "s1", "locator": "https://example.atlassian.net/browse/PLAT-1" }]
+    },
     "claims": [
       {
         "id": "c1",
@@ -86,6 +93,33 @@
       "expect": { "artifact_quality": "pass", "program_health": "at_risk" }
     },
     {
+      "id": "explicit-unknown-health-understates-active-signal",
+      "description": "Explicit unknown health with an active risk requires review and resolves to at_risk.",
+      "input": {
+        "health_assessment": {
+          "state": "unknown",
+          "owner": "Platform TPM",
+          "rationale": "The active risk is not yet resolved.",
+          "source_refs": [{ "source_id": "s1", "locator": "https://example.atlassian.net/browse/PLAT-1" }]
+        },
+        "claims": [
+          {
+            "id": "r-unknown-health",
+            "kind": "risk",
+            "text": "Capacity is unverified.",
+            "owner": "Platform Engineering",
+            "mitigation": "Run the load test before release.",
+            "source_refs": [{ "source_id": "s2", "locator": "https://example.com/notes/status" }]
+          }
+        ]
+      },
+      "expect": {
+        "artifact_quality": "needs_review",
+        "program_health": "at_risk",
+        "issues": ["health_assessment_understates_active_signals"]
+      }
+    },
+    {
       "id": "blocker-missing-owner",
       "description": "An active blocker without owner and due_at fails artifact quality.",
       "input": {
@@ -127,6 +161,12 @@
       "id": "superseded-blocker-not-judged",
       "description": "Only active claims participate in program health; superseded blockers are reported but never judged.",
       "input": {
+        "health_assessment": {
+          "state": "on_track",
+          "owner": "Platform TPM",
+          "rationale": "The only active claim is a current fact; the superseded blocker is historical context.",
+          "source_refs": [{ "source_id": "s1", "locator": "https://example.atlassian.net/browse/PLAT-1" }]
+        },
         "claims": [
           {
             "id": "c1",

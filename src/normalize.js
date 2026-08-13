@@ -6,14 +6,29 @@ import { CLAIM_KINDS, CLAIM_STATES, DATE_DERIVATIONS, EVIDENCE_GRADES, TIMELINE_
 // record) and is preserved, never treated as a body itself.
 export const RAW_SOURCE_KEYS = new Set([
   "content",
+  "contents",
   "body",
   "raw",
+  "raw_body",
   "raw_content",
-  "rawContent",
+  "raw_data",
+  "rawcontent",
+  "rawbody",
   "payload",
   "document",
+  "description",
+  "description_markdown",
+  "message",
+  "html",
+  "markdown",
+  "prose",
+  "blob",
+  "text",
   "data"
 ]);
+
+const NESTED_RAW_SOURCE_KEYS = RAW_SOURCE_KEYS;
+const DANGEROUS_SOURCE_KEYS = new Set(["__proto__", "prototype", "constructor"]);
 
 export const TOP_LEVEL_FIELDS = new Set([
   "kind",
@@ -24,8 +39,10 @@ export const TOP_LEVEL_FIELDS = new Set([
   "sources",
   "claims",
   "timeline",
-  "baseline_timeline"
+  "baseline_timeline",
+  "health_assessment"
 ]);
+export const HEALTH_ASSESSMENT_FIELDS = new Set(["state", "owner", "rationale", "source_refs"]);
 export const INITIATIVE_FIELDS = new Set(["name", "owner", "objective"]);
 export const POLICY_FIELDS = new Set(["max_observation_age_days", "max_source_content_age_days", "max_source_age_days"]);
 export const SOURCE_FIELDS = new Set([
@@ -94,9 +111,43 @@ export const SOURCE_REF_FIELDS = new Set([
   "content_hash",
   "heading",
   "tableRow",
-  "line",
-  "text"
+  "line"
 ]);
+
+export const SOURCE_METADATA_LIMITS = Object.freeze({
+  max_depth: 5,
+  max_serialized_bytes: 16 * 1024,
+  max_array_length: 100,
+  max_object_entries: 100,
+  max_string_length: 2048,
+  max_total_string_length: 32 * 1024,
+  max_traversed_entries: 1000
+});
+
+export const ARTIFACT_INPUT_LIMITS = Object.freeze({
+  max_sources: 1000,
+  max_claims: 5000,
+  max_timeline_items: 500,
+  max_baseline_timeline_items: 500,
+  max_timeline_dependencies: 50,
+  max_unsupported_top_level_fields: 200,
+  max_recommended_actions: 200
+});
+
+// These limits keep review work bounded while leaving ample room for normal
+// status artifacts. Values are intentionally shared by the runtime, JSON
+// Schema contracts, and MCP boundary.
+export const ARTIFACT_FIELD_LIMITS = Object.freeze({
+  max_claim_text_length: 4096,
+  max_claim_scalar_length: 2048,
+  max_access_caveats: 20,
+  max_access_caveat_length: 512,
+  max_claim_source_refs: 20,
+  max_health_source_refs: 20,
+  max_timeline_source_refs: 20,
+  max_source_ref_string_length: 2048,
+  max_timeline_item_string_length: 2048
+});
 
 export const DEFAULT_MAX_OBSERVATION_AGE_DAYS = 14;
 export const DEFAULT_MAX_SOURCE_CONTENT_AGE_DAYS = 14;
@@ -241,40 +292,41 @@ export function normalizeSource(raw, { index, asOf, policy, issues, deprecations
   }
 
   const unsupportedFields = Object.keys(raw).filter((key) => !SOURCE_FIELDS.has(key));
-  const rawKeys = unsupportedFields.filter((key) => RAW_SOURCE_KEYS.has(key));
-  const otherUnsupportedFields = unsupportedFields.filter((key) => !RAW_SOURCE_KEYS.has(key));
+  const rawKeys = unsupportedFields.filter((key) => isRawSourceKey(key));
+  const otherUnsupportedFields = unsupportedFields.filter((key) => !isRawSourceKey(key));
 
   if (rawKeys.length > 0) {
-    issues.push(
-      issue(
-        "raw_source_content",
-        "blocking",
-        location,
-        `Remove raw source fields (${rawKeys.join(", ")}); keep source bodies in their system of record.`
-      )
-    );
+    for (const field of rawKeys) {
+      issues.push(
+        issue(
+          "raw_source_content",
+          "blocking",
+          pathForKey(location, field),
+          `Remove raw source field '${field}'; keep source bodies in their system of record.`,
+          { field }
+        )
+      );
+    }
   }
   for (const field of otherUnsupportedFields) {
     issues.push(
-      issue("unsupported_source_field", "blocking", `${location}.${field}`, `Unsupported field '${field}'.`, { field })
+      issue("unsupported_source_field", "blocking", pathForKey(location, field), `Unsupported field '${field}'.`, { field })
     );
   }
 
   let id = optionalString(raw.id);
-  if (!id) {
-    const legacyId = optionalString(raw.sourceId);
-    if (legacyId) {
-      deprecations.push(
-        deprecation(
-          "deprecated_source_id",
-          `${location}.sourceId`,
-          "Source field 'sourceId' is deprecated.",
-          "Use 'id'."
-        )
-      );
-      id = legacyId;
-    }
+  const legacyId = optionalString(raw.sourceId);
+  if (Object.hasOwn(raw, "sourceId")) {
+    deprecations.push(
+      deprecation(
+        "deprecated_source_id",
+        pathForKey(location, "sourceId"),
+        "Source field 'sourceId' is deprecated.",
+        "Use 'id'."
+      )
+    );
   }
+  if (!id) id = legacyId;
 
   const sourceKind = optionalString(raw.kind)?.toLowerCase();
   if (sourceKind !== undefined && !["document", "record"].includes(sourceKind)) {
@@ -296,7 +348,7 @@ export function normalizeSource(raw, { index, asOf, policy, issues, deprecations
     deprecations.push(
       deprecation(
         "deprecated_captured_at",
-        `${location}.captured_at`,
+        pathForKey(location, "captured_at"),
         "Source field 'captured_at' is deprecated.",
         "Use 'observed_at'."
       )
@@ -305,7 +357,7 @@ export function normalizeSource(raw, { index, asOf, policy, issues, deprecations
   if (raw.observed_at !== undefined) {
     observedAt = normalizeSourceTimestamp(raw.observed_at, `${location}.observed_at`, "invalid_observed_at", issues);
   } else if (raw.captured_at !== undefined) {
-    observedAt = normalizeSourceTimestamp(raw.captured_at, `${location}.captured_at`, "invalid_observed_at", issues);
+    observedAt = normalizeSourceTimestamp(raw.captured_at, pathForKey(location, "captured_at"), "invalid_observed_at", issues);
   }
 
   if (!observedAt) {
@@ -405,9 +457,9 @@ export function normalizeSource(raw, { index, asOf, policy, issues, deprecations
 
   const contentHash = normalizeContentHash(raw.content_hash, `${location}.content_hash`, issues);
   const revision = normalizeRevision(raw.revision, `${location}.revision`, issues);
-  const accessCaveats = normalizeStringArray(raw.access_caveats, `${location}.access_caveats`, issues);
-  const fields = isObject(raw.fields) ? raw.fields : undefined;
-  const metadata = isObject(raw.metadata) ? raw.metadata : undefined;
+  const accessCaveats = normalizeAccessCaveats(raw.access_caveats, `${location}.access_caveats`, issues);
+  const fields = normalizeSourceMetadata(raw.fields, `${location}.fields`, "fields", issues);
+  const metadata = normalizeSourceMetadata(raw.metadata, `${location}.metadata`, "metadata", issues);
 
   return compactObject({
     id,
@@ -422,7 +474,7 @@ export function normalizeSource(raw, { index, asOf, policy, issues, deprecations
     owner: optionalString(raw.owner),
     revision,
     content_hash: contentHash,
-    locator: optionalString(raw.locator),
+    locator: normalizeSourceRefLocator(raw.locator, `${location}.locator`, issues),
     access_caveats: accessCaveats,
     fields,
     metadata,
@@ -458,11 +510,23 @@ function normalizeContentHash(value, location, issues) {
 }
 
 function normalizeRevision(value, location, issues) {
+  if (value === null) return null;
   if (typeof value === "number" && Number.isFinite(value)) return value;
   const text = optionalString(value);
-  if (text) return text;
+  if (text) {
+    if (text.length > ARTIFACT_FIELD_LIMITS.max_source_ref_string_length) {
+      issues.push(issue(
+        "revision_too_large",
+        "blocking",
+        location,
+        `revision exceeds ${ARTIFACT_FIELD_LIMITS.max_source_ref_string_length} characters and was omitted.`
+      ));
+      return undefined;
+    }
+    return text;
+  }
   if (value !== undefined && value !== null) {
-    issues.push(issue("invalid_revision", "review", location, "revision must be a string or a finite number."));
+    issues.push(issue("invalid_revision", "blocking", location, "revision must be a string, a finite number, or null; the invalid value was omitted."));
   }
   return undefined;
 }
@@ -478,6 +542,44 @@ function normalizeStringArray(value, location, issues) {
     issues.push(issue("invalid_field", "review", location, "Expected an array of strings."));
   }
   return strings.length > 0 ? strings : undefined;
+}
+
+function normalizeAccessCaveats(value, location, issues) {
+  const caveats = normalizeStringArray(value, location, issues);
+  if (!caveats) return caveats;
+  if (caveats.length > ARTIFACT_FIELD_LIMITS.max_access_caveats) {
+    issues.push(issue(
+      "too_many_access_caveats",
+      "blocking",
+      location,
+      `access_caveats exceeds the maximum of ${ARTIFACT_FIELD_LIMITS.max_access_caveats} entries.`
+    ));
+  }
+  const safe = [];
+  for (const [index, caveat] of caveats.slice(0, ARTIFACT_FIELD_LIMITS.max_access_caveats).entries()) {
+    if (caveat.length > ARTIFACT_FIELD_LIMITS.max_access_caveat_length) {
+      issues.push(issue(
+        "access_caveat_too_large",
+        "blocking",
+        `${location}[${index}]`,
+        `Access caveat exceeds ${ARTIFACT_FIELD_LIMITS.max_access_caveat_length} characters and was omitted.`
+      ));
+      continue;
+    }
+    if (containsCredentialBearingUrl(caveat)) {
+      issues.push(
+        issue(
+          "privacy_source_url",
+          "blocking",
+          `${location}[${index}]`,
+          "Access caveat must not contain a credential-bearing HTTP(S) URL."
+        )
+      );
+      continue;
+    }
+    safe.push(caveat);
+  }
+  return safe.length > 0 ? safe : undefined;
 }
 
 function normalizeSourceTimestamp(value, location, issueType, issues, severity = "blocking") {
@@ -546,11 +648,11 @@ export function normalizeClaim(raw, { index, sourceIds, issues, deprecations }) 
   const id = optionalString(raw.id);
   const kind = optionalString(raw.kind)?.toLowerCase();
   const state = normalizeClaimState(raw.state, location, issues);
-  const text = optionalString(raw.text);
-  const sourceRefs = normalizeSourceRefs(raw.source_refs, location, issues, deprecations);
-  const subject = optionalString(raw.subject);
+  const text = boundedString(raw.text, `${location}.text`, ARTIFACT_FIELD_LIMITS.max_claim_text_length, "claim_text_too_large", issues);
+  const sourceRefs = normalizeSourceRefs(raw.source_refs, location, issues, deprecations, ARTIFACT_FIELD_LIMITS.max_claim_source_refs);
+  const subject = boundedString(raw.subject, `${location}.subject`, ARTIFACT_FIELD_LIMITS.max_claim_scalar_length, "claim_scalar_too_large", issues);
   const claimValue = normalizeClaimValue(raw.value, location, issues);
-  const mitigation = optionalString(raw.mitigation);
+  const mitigation = boundedString(raw.mitigation, `${location}.mitigation`, ARTIFACT_FIELD_LIMITS.max_claim_text_length, "claim_text_too_large", issues);
 
   if (!id) issues.push(issue("missing_claim_id", "blocking", location, "Add a stable claim id."));
   if (!kind) {
@@ -596,7 +698,7 @@ export function normalizeClaim(raw, { index, sourceIds, issues, deprecations }) 
     );
   }
 
-  if (!id || !kind || !CLAIM_KINDS.includes(kind) || !text || !state) return null;
+  if (!id || !kind || !CLAIM_KINDS.includes(kind) || !text || !state || sourceRefs.length === 0) return null;
 
   const normalized = compactObject({
     id,
@@ -605,7 +707,7 @@ export function normalizeClaim(raw, { index, sourceIds, issues, deprecations }) 
     subject,
     value: claimValue,
     text,
-    owner: optionalString(raw.owner),
+    owner: boundedString(raw.owner, `${location}.owner`, ARTIFACT_FIELD_LIMITS.max_source_ref_string_length, "claim_scalar_too_large", issues),
     due_at: normalizeOptionalDate(raw.due_at, `${location}.due_at`, issues, location, "invalid_due_at"),
     mitigation,
     source_refs: sourceRefs
@@ -690,15 +792,101 @@ export function normalizeClaimState(value, location, issues) {
   return state;
 }
 
-export function normalizeSourceRefs(value, location, issues, deprecations) {
+export function normalizeHealthAssessment(value, { sourceIds, issues, deprecations }) {
+  const location = "health_assessment";
+  if (value === undefined) {
+    issues.push(
+      issue(
+        "missing_health_assessment",
+        "review",
+        location,
+        "Add an explicit health assessment with state, owner, rationale, and cited source references; facts alone do not establish on_track health."
+      )
+    );
+    return { assessment: undefined, reportedState: undefined };
+  }
+  if (!isObject(value)) {
+    issues.push(issue("invalid_health_assessment", "blocking", location, "health_assessment must be an object."));
+    return { assessment: undefined, reportedState: undefined };
+  }
+
+  reportUnsupportedFields(value, HEALTH_ASSESSMENT_FIELDS, "unsupported_health_assessment_field", location, issues);
+  const state = optionalString(value.state)?.toLowerCase();
+  const owner = boundedString(value.owner, `${location}.owner`, ARTIFACT_FIELD_LIMITS.max_timeline_item_string_length, "health_assessment_owner_too_large", issues);
+  const rationale = boundedString(value.rationale, `${location}.rationale`, ARTIFACT_FIELD_LIMITS.max_claim_text_length, "health_assessment_rationale_too_large", issues);
+  const sourceRefs = normalizeSourceRefs(value.source_refs, location, issues, deprecations, ARTIFACT_FIELD_LIMITS.max_health_source_refs);
+
+  if (!state || !["on_track", "at_risk", "blocked", "unknown"].includes(state)) {
+    issues.push(
+      issue(
+        "invalid_health_assessment_state",
+        "blocking",
+        `${location}.state`,
+        "health_assessment.state must be on_track, at_risk, blocked, or unknown."
+      )
+    );
+  }
+  if (!owner) {
+    issues.push(issue("health_assessment_missing_owner", "blocking", `${location}.owner`, "Add a non-empty accountable owner."));
+  }
+  if (!rationale) {
+    issues.push(issue("health_assessment_missing_rationale", "blocking", `${location}.rationale`, "Add a non-empty rationale."));
+  }
+  if (sourceRefs.length === 0) {
+    issues.push(
+      issue(
+        "health_assessment_missing_source_refs",
+        "blocking",
+        `${location}.source_refs`,
+        "Cite at least one canonical source reference."
+      )
+    );
+  }
+  for (const [index, ref] of sourceRefs.entries()) {
+    if (!ref.locator) {
+      issues.push(
+        issue(
+          "health_assessment_missing_source_ref_locator",
+          "blocking",
+          `${location}.source_refs[${index}].locator`,
+          "Every health assessment source reference requires a locator."
+        )
+      );
+    }
+    if (!sourceIds.has(ref.source_id)) {
+      issues.push(
+        issue(
+          "health_assessment_unknown_source_ref",
+          "blocking",
+          `${location}.source_refs[${index}]`,
+          `Health assessment cites unknown source '${ref.source_id}'.`,
+          { source_id: ref.source_id }
+        )
+      );
+    }
+  }
+
+  const complete = state && ["on_track", "at_risk", "blocked", "unknown"].includes(state) && owner && rationale &&
+    sourceRefs.length > 0 && sourceRefs.every((ref) => ref.locator && sourceIds.has(ref.source_id));
+  return {
+    reportedState: state && ["on_track", "at_risk", "blocked", "unknown"].includes(state) ? state : undefined,
+    assessment: complete ? { state, owner, rationale, source_refs: sourceRefs } : undefined
+  };
+}
+
+export function normalizeSourceRefs(value, location, issues, deprecations, maxItems = ARTIFACT_FIELD_LIMITS.max_timeline_source_refs) {
   if (value === undefined) return [];
   if (!Array.isArray(value)) {
     issues.push(issue("invalid_source_refs", "blocking", location, "source_refs must be an array of source references."));
     return [];
   }
 
+  if (value.length > maxItems) {
+    issues.push(issue("too_many_source_refs", "blocking", location, `source_refs exceeds the maximum of ${maxItems} entries.`));
+  }
+
   const refs = [];
-  for (const [index, entry] of value.entries()) {
+  for (const [index, entry] of value.slice(0, maxItems).entries()) {
     const refLocation = `${location}.source_refs[${index}]`;
     let ref;
     if (typeof entry === "string") {
@@ -719,7 +907,7 @@ export function normalizeSourceRefs(value, location, issues, deprecations) {
       );
       ref = { source_id: sourceId };
     } else if (isObject(entry)) {
-      const unsupportedRefFields = Object.keys(entry).filter((key) => !SOURCE_REF_FIELDS.has(key));
+       const unsupportedRefFields = Object.keys(entry).filter((key) => key !== "text" && !SOURCE_REF_FIELDS.has(key));
       for (const field of unsupportedRefFields) {
         issues.push(
           issue("unsupported_source_ref_field", "blocking", `${refLocation}.${field}`, `Unsupported field '${field}'.`, { field })
@@ -727,18 +915,28 @@ export function normalizeSourceRefs(value, location, issues, deprecations) {
       }
 
       let sourceId = optionalString(entry.source_id);
-      if (!sourceId) {
+      if (Object.hasOwn(entry, "text")) {
+        deprecations.push(
+          deprecation(
+            "deprecated_source_ref_text",
+            pathForKey(refLocation, "text"),
+            "Verbatim SourceRef text is deprecated and was stripped from canonical output.",
+            "Use a provenance locator such as heading, line, or tableRow."
+          )
+        );
+      }
+      if (Object.hasOwn(entry, "sourceId")) {
         const legacyId = optionalString(entry.sourceId);
         if (legacyId) {
           deprecations.push(
             deprecation(
               "deprecated_source_id",
-              `${refLocation}.sourceId`,
+              pathForKey(refLocation, "sourceId"),
               "Source reference field 'sourceId' is deprecated.",
               "Use 'source_id'."
             )
           );
-          sourceId = legacyId;
+          if (!sourceId) sourceId = legacyId;
         }
       }
       if (!sourceId) {
@@ -746,24 +944,25 @@ export function normalizeSourceRefs(value, location, issues, deprecations) {
         continue;
       }
 
+       const locator = normalizeSourceRefLocator(entry.locator, `${refLocation}.locator`, issues);
+
       ref = compactObject({
         source_id: sourceId,
-        locator: optionalString(entry.locator),
-        note: optionalString(entry.note),
-        path: optionalString(entry.path),
-        url: optionalString(entry.url),
+        locator,
+        note: boundedString(entry.note, `${refLocation}.note`, ARTIFACT_FIELD_LIMITS.max_source_ref_string_length, "source_ref_string_too_large", issues),
+        path: boundedString(entry.path, `${refLocation}.path`, ARTIFACT_FIELD_LIMITS.max_source_ref_string_length, "source_ref_string_too_large", issues),
+        url: normalizeOptionalUrl(entry.url, `${refLocation}.url`, issues),
         observed_at: normalizeSourceRefTimestamp(entry.observed_at, `${refLocation}.observed_at`, issues),
         source_updated_at: normalizeSourceRefTimestamp(entry.source_updated_at, `${refLocation}.source_updated_at`, issues),
-        revision: entry.revision === undefined ? undefined : entry.revision,
+        revision: normalizeRevision(entry.revision, `${refLocation}.revision`, issues),
         content_hash: normalizeContentHash(entry.content_hash, `${refLocation}.content_hash`, issues),
         // Timeline Truth provenance passthrough: section heading, table row or
         // line numbers (positive integers), and verbatim quoted text. These
         // locate the evidence inside the source; they never change the
         // required source_id + locator contract.
-        heading: optionalString(entry.heading),
+        heading: boundedString(entry.heading, `${refLocation}.heading`, ARTIFACT_FIELD_LIMITS.max_source_ref_string_length, "source_ref_string_too_large", issues),
         tableRow: positiveInteger(entry.tableRow),
-        line: positiveInteger(entry.line),
-        text: optionalString(entry.text)
+        line: positiveInteger(entry.line)
       });
     } else {
       issues.push(
@@ -815,6 +1014,15 @@ export function normalizeClaimValue(value, location, issues) {
     return undefined;
   }
   if (typeof value === "string") {
+    if (value.length > ARTIFACT_FIELD_LIMITS.max_claim_scalar_length) {
+      issues.push(issue(
+        "claim_scalar_too_large",
+        "blocking",
+        `${location}.value`,
+        `Claim scalar exceeds ${ARTIFACT_FIELD_LIMITS.max_claim_scalar_length} characters and was omitted.`
+      ));
+      return undefined;
+    }
     if (value.trim()) return value;
     issues.push(issue("unsupported_claim_value", "blocking", location, "Claim value must not be an empty string."));
     return undefined;
@@ -832,15 +1040,19 @@ export function normalizeClaimValue(value, location, issues) {
   return undefined;
 }
 
-export function normalizeTimelineItems(value, issues, deprecations = []) {
+export function normalizeTimelineItems(value, issues, deprecations = [], maxItems = ARTIFACT_INPUT_LIMITS.max_timeline_items) {
   if (value === undefined) return [];
   if (!Array.isArray(value)) {
     issues.push(issue("invalid_timeline", "blocking", "timeline", "timeline must be an array of timeline items."));
     return [];
   }
 
+  if (value.length > maxItems) {
+    issues.push(issue("too_many_timeline_items", "blocking", "timeline", `timeline exceeds the maximum of ${maxItems} entries.`));
+  }
+
   const items = [];
-  value.forEach((rawItem, index) => {
+  value.slice(0, maxItems).forEach((rawItem, index) => {
     const location = `timeline[${index}]`;
     const normalized = normalizeTimelineItem(rawItem, location, issues, deprecations, index);
     if (normalized) items.push(normalized);
@@ -860,7 +1072,7 @@ export function normalizeTimelineItem(rawItem, location, issues, deprecations = 
   for (const field of unsupportedFields) {
     if (dangerousFields.includes(field)) continue;
     issues.push(
-      issue("unsupported_timeline_field", "blocking", `${location}.${field}`, `Unsupported field '${field}'.`, { field })
+      issue("unsupported_timeline_field", "blocking", pathForKey(location, field), `Unsupported field '${field}'.`, { field })
     );
   }
   for (const field of dangerousFields) {
@@ -868,36 +1080,40 @@ export function normalizeTimelineItem(rawItem, location, issues, deprecations = 
       issue(
         "dangerous_timeline_field",
         "blocking",
-        `${location}.${field}`,
+        pathForKey(location, field),
         `Unsupported dangerous field '${field}' was dropped.`,
         { field }
       )
     );
   }
 
-  const rawTitle = optionalString(rawItem.title);
+  const rawTitle = boundedString(rawItem.title, `${location}.title`, ARTIFACT_FIELD_LIMITS.max_timeline_item_string_length, "timeline_string_too_large", issues);
   const title = rawTitle ?? "Untitled";
   const missingTitle = rawTitle === undefined;
 
-  const id = optionalString(rawItem.id) ?? (slugify(title) || `timeline-${index + 1}`);
+  const id = boundedString(rawItem.id, `${location}.id`, ARTIFACT_FIELD_LIMITS.max_timeline_item_string_length, "timeline_string_too_large", issues) ?? (slugify(title) || `timeline-${index + 1}`);
   const type = rawItem.type === "milestone" ? "milestone" : "task";
 
   const start = normalizeTimelineDate(rawItem.start, `${location}.start`, issues);
   const end = normalizeTimelineDate(rawItem.end, `${location}.end`, issues);
-  const timeWindow = optionalString(rawItem.time_window);
-  const dateText = optionalString(rawItem.date_text);
+  const timeWindow = boundedString(rawItem.time_window, `${location}.time_window`, ARTIFACT_FIELD_LIMITS.max_timeline_item_string_length, "timeline_string_too_large", issues);
+  const dateText = boundedString(rawItem.date_text, `${location}.date_text`, ARTIFACT_FIELD_LIMITS.max_timeline_item_string_length, "timeline_string_too_large", issues);
   const exactDateNeeded = Boolean(timeWindow !== undefined && start === undefined && end === undefined);
   const duration = normalizeDuration(rawItem.duration, `${location}.duration`, issues);
 
   const dateDerivation = normalizeDateDerivation(rawItem.date_derivation, { start, end, timeWindow, dateText });
   const evidenceGrade = computeEvidenceGrade({ dateDerivation, timeWindow, dateText, start, end });
-  const evidenceReason = optionalString(rawItem.evidence_reason) ?? evidenceReasonFor(evidenceGrade);
+  const evidenceReason = boundedString(rawItem.evidence_reason, `${location}.evidence_reason`, ARTIFACT_FIELD_LIMITS.max_timeline_item_string_length, "timeline_string_too_large", issues) ?? evidenceReasonFor(evidenceGrade);
 
-  const dependencies = Array.isArray(rawItem.dependencies)
-    ? rawItem.dependencies.map((entry) => optionalString(entry)).filter(Boolean)
+  const rawDependencies = Array.isArray(rawItem.dependencies)
+    ? rawItem.dependencies.slice(0, ARTIFACT_INPUT_LIMITS.max_timeline_dependencies)
     : typeof rawItem.dependencies === "string"
-      ? rawItem.dependencies.split(/[|,;]/).map((entry) => entry.trim()).filter(Boolean)
+      ? rawItem.dependencies.split(/[|,;]/).slice(0, ARTIFACT_INPUT_LIMITS.max_timeline_dependencies)
       : [];
+  if (Array.isArray(rawItem.dependencies) && rawItem.dependencies.length > ARTIFACT_INPUT_LIMITS.max_timeline_dependencies) {
+    issues.push(issue("too_many_timeline_dependencies", "blocking", `${location}.dependencies`, `dependencies exceeds the maximum of ${ARTIFACT_INPUT_LIMITS.max_timeline_dependencies} entries.`));
+  }
+  const dependencies = rawDependencies.map((entry, dependencyIndex) => boundedString(entry, `${location}.dependencies[${dependencyIndex}]`, ARTIFACT_FIELD_LIMITS.max_timeline_item_string_length, "timeline_string_too_large", issues)).filter(Boolean);
 
   return compactObject({
     id,
@@ -909,15 +1125,15 @@ export function normalizeTimelineItem(rawItem, location, issues, deprecations = 
     time_window: timeWindow,
     date_text: dateText,
     exact_date_needed: exactDateNeeded,
-    owner: optionalString(rawItem.owner),
-    status: optionalString(rawItem.status) ?? "planned",
+     owner: boundedString(rawItem.owner, `${location}.owner`, ARTIFACT_FIELD_LIMITS.max_timeline_item_string_length, "timeline_string_too_large", issues),
+     status: boundedString(rawItem.status, `${location}.status`, ARTIFACT_FIELD_LIMITS.max_timeline_item_string_length, "timeline_string_too_large", issues) ?? "planned",
     dependencies,
     date_derivation: dateDerivation,
     evidence_grade: evidenceGrade,
     evidence_reason: evidenceReason,
     missing_title: missingTitle,
     dangerous_fields: dangerousFields,
-    source_refs: normalizeSourceRefs(rawItem.source_refs, `${location}.source_refs`, issues, deprecations)
+     source_refs: normalizeSourceRefs(rawItem.source_refs, `${location}.source_refs`, issues, deprecations, ARTIFACT_FIELD_LIMITS.max_timeline_source_refs)
   });
 }
 
@@ -984,7 +1200,14 @@ export function slugify(value) {
 
 export function normalizeCollection(value, field, issues) {
   if (value === undefined) return [];
-  if (Array.isArray(value)) return value;
+  if (Array.isArray(value)) {
+    const limit = field === "sources" ? ARTIFACT_INPUT_LIMITS.max_sources : field === "claims" ? ARTIFACT_INPUT_LIMITS.max_claims : undefined;
+    if (limit !== undefined && value.length > limit) {
+      issues.push(issue(`too_many_${field}`, "blocking", field, `${field} exceeds the maximum of ${limit} entries.`));
+      return value.slice(0, limit);
+    }
+    return value;
+  }
   issues.push(issue(`invalid_${field}`, "blocking", field, `${field} must be an array.`));
   return [];
 }
@@ -1005,11 +1228,299 @@ export function normalizeOptionalUrl(value, location, issues) {
   try {
     const url = new URL(raw);
     if (!new Set(["http:", "https:"]).has(url.protocol)) throw new Error("unsupported protocol");
+    if (url.username || url.password) {
+      issues.push(
+        issue(
+          "privacy_source_url",
+          "blocking",
+          location,
+          "Source url must not contain userinfo or credentials."
+        )
+      );
+      return undefined;
+    }
+    const credentialParameter = [...url.searchParams.keys()].find(isCredentialQueryParameter);
+    if (credentialParameter !== undefined || fragmentHasCredentialName(url.hash.slice(1))) {
+      issues.push(
+        issue(
+          "privacy_source_url",
+          "blocking",
+          location,
+          "Source url must not contain credential-like query or fragment parameters."
+        )
+      );
+      return undefined;
+    }
     return url.toString();
   } catch {
     issues.push(issue("invalid_source_url", "review", location, "Source url must be an absolute HTTP or HTTPS URL."));
     return undefined;
   }
+}
+
+function normalizeSourceRefLocator(value, location, issues) {
+  const raw = optionalString(value);
+  if (!raw) return undefined;
+
+  try {
+    const url = new URL(raw);
+    if (url.protocol === "http:" || url.protocol === "https:") {
+      return normalizeOptionalUrl(raw, location, issues);
+    }
+  } catch {
+    // Locators may also be paths, keys, or stable ids; leave non-URLs alone.
+  }
+  return raw;
+}
+
+function containsCredentialBearingUrl(value) {
+  const urls = String(value).match(/https?:\/\/[^\s<>()]+/gi) ?? [];
+  return urls.some((candidate) => {
+    const normalized = candidate.replace(/[.,;:!?]+$/, "");
+    try {
+      const url = new URL(normalized);
+      return Boolean(url.username || url.password) ||
+        [...url.searchParams.keys()].some(isCredentialQueryParameter) ||
+        fragmentHasCredentialName(url.hash.slice(1));
+    } catch {
+      return false;
+    }
+  });
+}
+
+function isCredentialQueryParameter(value) {
+  const key = normalizeCredentialName(value);
+  if (!key) return false;
+  const compact = key.replaceAll("_", "");
+  if (["awsaccesskeyid", "clientassertion", "jwt", "apikey", "xapikey"].includes(compact)) return true;
+  if (compact.endsWith("apikey")) return true;
+  const segments = key.split(/[^a-z0-9]+/).filter(Boolean);
+  return segments.some((segment) =>
+    ["token", "secret", "auth", "authorization", "password", "signature", "signatures", "sig"].includes(segment)
+  ) || segments.includes("session") && segments.includes("id");
+}
+
+function normalizeCredentialName(value) {
+  return String(value ?? "")
+    .trim()
+    .replace(/([a-z])([A-Z])/g, "$1_$2")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_|_$/g, "");
+}
+
+function fragmentHasCredentialName(fragment) {
+  const candidates = String(fragment ?? "")
+    .split(/[&#;,\s]+/)
+    .map((part) => part.split("=", 1)[0]);
+  return candidates.some((candidate) => isCredentialQueryParameter(candidate));
+}
+
+function isRawSourceKey(key) {
+  const normalized = String(key)
+    .replace(/([a-z])([A-Z])/g, "$1_$2")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_|_$/g, "");
+  if (normalized === "content_hash") return false;
+  // Match only complete normalized aliases. Substring/token matching would
+  // reject legitimate structured metadata such as context_id, status_text,
+  // documentation, and payload_status. Explicit compound aliases remain
+  // blocked (for example description_markdown and raw_content).
+  return NESTED_RAW_SOURCE_KEYS.has(normalized);
+}
+
+function normalizeSourceMetadata(value, location, fieldName, issues) {
+  if (value === undefined) return undefined;
+  if (!isObject(value)) {
+    issues.push(
+      issue(
+        `invalid_source_${fieldName}`,
+        "blocking",
+        location,
+        `Source ${fieldName} must be an object; the invalid value was omitted.`
+      )
+    );
+    return undefined;
+  }
+
+  if (!measureMetadata(value, location, 0, new WeakSet(), { entries: 0, stringLength: 0, bytes: 2 }, issues)) return undefined;
+
+  const activeObjects = new WeakSet();
+  const normalizeValue = (entry, entryLocation, depth) => {
+    if (depth > SOURCE_METADATA_LIMITS.max_depth) {
+      issues.push(
+        issue(
+          "source_metadata_too_deep",
+          "blocking",
+          entryLocation,
+          `Source metadata exceeds the maximum nesting depth of ${SOURCE_METADATA_LIMITS.max_depth}; the offending value was omitted.`
+        )
+      );
+      return undefined;
+    }
+    if (typeof entry === "string" && entry.length > SOURCE_METADATA_LIMITS.max_string_length) {
+      issues.push(
+        issue(
+          "source_metadata_string_too_large",
+          "blocking",
+          entryLocation,
+          `Source metadata string exceeds ${SOURCE_METADATA_LIMITS.max_string_length} characters and was omitted.`
+        )
+      );
+      return undefined;
+    }
+    if (Array.isArray(entry)) {
+      if (entry.length > SOURCE_METADATA_LIMITS.max_array_length) {
+        issues.push(
+          issue(
+            "source_metadata_array_too_large",
+            "blocking",
+            entryLocation,
+            `Source metadata array exceeds ${SOURCE_METADATA_LIMITS.max_array_length} entries and was omitted.`
+          )
+        );
+        return undefined;
+      }
+      if (activeObjects.has(entry)) {
+        issues.push(issue("invalid_source_metadata", "blocking", entryLocation, "Cyclic source metadata was omitted."));
+        return undefined;
+      }
+      activeObjects.add(entry);
+      const normalizedArray = entry
+        .map((item, index) => normalizeValue(item, `${entryLocation}[${index}]`, depth + 1))
+        .filter((item) => item !== undefined);
+      activeObjects.delete(entry);
+      return normalizedArray;
+    }
+    if (!isObject(entry)) return entry;
+
+    if (activeObjects.has(entry)) {
+      issues.push(issue("invalid_source_metadata", "blocking", entryLocation, "Cyclic source metadata was omitted."));
+      return undefined;
+    }
+    activeObjects.add(entry);
+    const normalized = {};
+    let entries;
+    try {
+      entries = Object.entries(entry);
+    } catch {
+      activeObjects.delete(entry);
+      issues.push(issue("invalid_source_metadata", "blocking", entryLocation, "Source metadata could not be read and was omitted."));
+      return undefined;
+    }
+    for (const [key, child] of entries) {
+      const childLocation = pathForKey(entryLocation, key);
+      if (DANGEROUS_SOURCE_KEYS.has(key.toLowerCase())) {
+        issues.push(
+          issue(
+            "dangerous_source_field",
+            "blocking",
+            childLocation,
+            `Dangerous prototype field '${key}' was dropped.`,
+            { field: key }
+          )
+        );
+        continue;
+      }
+      if (isRawSourceKey(key)) {
+        issues.push(
+          issue(
+            "raw_source_content",
+            "blocking",
+            childLocation,
+            `Remove raw source field '${key}'; keep source bodies in their system of record.`,
+            { field: key }
+          )
+        );
+        continue;
+      }
+      const normalizedChild = normalizeValue(child, childLocation, depth + 1);
+      if (normalizedChild === undefined) continue;
+      Object.defineProperty(normalized, key, {
+        value: normalizedChild,
+        enumerable: true,
+        configurable: true,
+        writable: true
+      });
+    }
+    activeObjects.delete(entry);
+    return normalized;
+  };
+
+  return normalizeValue(value, location, 0);
+}
+
+// Bound hostile metadata before any full stringify. The existing per-value
+// limits remain in normalizeValue; this preflight adds aggregate traversal,
+// string, entry, cycle, and estimated-byte limits.
+function measureMetadata(value, location, depth, activeObjects, budget, issues) {
+  if (depth > SOURCE_METADATA_LIMITS.max_depth) {
+    issues.push(issue("source_metadata_too_deep", "blocking", location, `Source metadata exceeds the maximum nesting depth of ${SOURCE_METADATA_LIMITS.max_depth}; the offending value was omitted.`));
+    return false;
+  }
+  budget.entries += 1;
+  if (budget.entries > SOURCE_METADATA_LIMITS.max_traversed_entries) {
+    issues.push(issue("source_metadata_too_many_entries", "blocking", location, `Source metadata exceeds the traversal limit of ${SOURCE_METADATA_LIMITS.max_traversed_entries} entries and was omitted.`));
+    return false;
+  }
+  if (typeof value === "string") {
+    if (value.length > SOURCE_METADATA_LIMITS.max_string_length) {
+      issues.push(issue("source_metadata_string_too_large", "blocking", location, `Source metadata string exceeds ${SOURCE_METADATA_LIMITS.max_string_length} characters and was omitted.`));
+      return false;
+    }
+    budget.stringLength += value.length;
+    budget.bytes += Buffer.byteLength(JSON.stringify(value), "utf8");
+  } else if (value === null || typeof value !== "object") {
+    budget.bytes += Buffer.byteLength(String(value), "utf8");
+  } else if (Array.isArray(value)) {
+    if (value.length > SOURCE_METADATA_LIMITS.max_array_length) {
+      issues.push(issue("source_metadata_array_too_large", "blocking", location, `Source metadata array exceeds ${SOURCE_METADATA_LIMITS.max_array_length} entries and was omitted.`));
+      return false;
+    }
+    if (activeObjects.has(value)) {
+      issues.push(issue("invalid_source_metadata", "blocking", location, "Cyclic source metadata was omitted."));
+      return false;
+    }
+    activeObjects.add(value);
+    for (const [index, child] of value.entries()) {
+      if (!measureMetadata(child, `${location}[${index}]`, depth + 1, activeObjects, budget, issues)) return false;
+    }
+    activeObjects.delete(value);
+    budget.bytes += value.length + 1;
+  } else {
+    if (activeObjects.has(value)) {
+      issues.push(issue("invalid_source_metadata", "blocking", location, "Cyclic source metadata was omitted."));
+      return false;
+    }
+    let entries;
+    try { entries = Object.entries(value); } catch {
+      issues.push(issue("invalid_source_metadata", "blocking", location, "Source metadata could not be read and was omitted."));
+      return false;
+    }
+    if (entries.length > SOURCE_METADATA_LIMITS.max_object_entries) {
+      issues.push(issue("source_metadata_object_too_large", "blocking", location, `Source metadata object exceeds ${SOURCE_METADATA_LIMITS.max_object_entries} entries and was omitted.`));
+      return false;
+    }
+    activeObjects.add(value);
+    budget.bytes += 2;
+    for (const [key, child] of entries) {
+      const childLocation = pathForKey(location, key);
+      budget.bytes += Buffer.byteLength(JSON.stringify(key), "utf8") + 1;
+      if (!measureMetadata(child, childLocation, depth + 1, activeObjects, budget, issues)) return false;
+    }
+    activeObjects.delete(value);
+  }
+  if (budget.stringLength > SOURCE_METADATA_LIMITS.max_total_string_length || budget.bytes > SOURCE_METADATA_LIMITS.max_serialized_bytes) {
+    issues.push(issue("source_metadata_too_large", "blocking", location, `Source metadata exceeds the aggregate ${SOURCE_METADATA_LIMITS.max_serialized_bytes}-byte or ${SOURCE_METADATA_LIMITS.max_total_string_length}-character limit and was omitted.`, {
+      estimated_bytes: budget.bytes,
+      string_characters: budget.stringLength,
+      limit_bytes: SOURCE_METADATA_LIMITS.max_serialized_bytes,
+      limit_string_characters: SOURCE_METADATA_LIMITS.max_total_string_length
+    }));
+    return false;
+  }
+  return true;
 }
 
 export function normalizeDate(value, field) {
@@ -1067,12 +1578,41 @@ export function canonicalValue(value) {
   return `${typeof value}:${String(value)}`;
 }
 
-export function reportUnsupportedFields(value, allowedFields, type, location, issues) {
+export function reportUnsupportedFields(value, allowedFields, type, location, issues, options = {}) {
   if (!isObject(value)) return;
-  for (const field of Object.keys(value)) {
+  const maxProperties = options.maxProperties ?? Number.POSITIVE_INFINITY;
+  const maxFields = options.maxFields ?? Number.POSITIVE_INFINITY;
+  let inspectedProperties = 0;
+  let unsupportedFields = 0;
+  let truncated = false;
+
+  for (const field in value) {
+    if (!Object.hasOwn(value, field)) continue;
+    if (inspectedProperties >= maxProperties || unsupportedFields >= maxFields) {
+      truncated = true;
+      break;
+    }
+    inspectedProperties += 1;
     if (allowedFields.has(field)) continue;
-    issues.push(issue(type, "blocking", `${location}.${field}`, `Unsupported field '${field}'.`, { field }));
+    unsupportedFields += 1;
+    issues.push(issue(type, "blocking", pathForKey(location, field), `Unsupported field '${field}'.`, { field }));
   }
+
+  if (truncated) {
+    issues.push(issue(
+      `${type}_truncated`,
+      "blocking",
+      location,
+      `Unsupported field scanning was truncated after ${Math.min(maxProperties, maxFields)} entries.`
+    ));
+  }
+}
+
+export function pathForKey(location, key) {
+  const text = String(key);
+  return /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(text)
+    ? `${location}.${text}`
+    : `${location}[${JSON.stringify(text)}]`;
 }
 
 export function humanDate(value) {
@@ -1088,6 +1628,16 @@ export function optionalString(value) {
   if (typeof value !== "string") return undefined;
   const normalized = value.trim();
   return normalized || undefined;
+}
+
+function boundedString(value, location, limit, issueType, issues) {
+  const normalized = optionalString(value);
+  if (normalized === undefined) return undefined;
+  if (normalized.length > limit) {
+    issues.push(issue(issueType, "blocking", location, `String exceeds ${limit} characters and was omitted.`));
+    return undefined;
+  }
+  return normalized;
 }
 
 export function stringOr(value, fallback) {

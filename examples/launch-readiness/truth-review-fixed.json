@@ -1,6 +1,6 @@
 {
   "kind": "truth_review",
-  "schema_version": "1.0.0",
+  "schema_version": "2.0.0",
   "initiative": {
     "name": "Checkout migration launch readiness",
     "owner": "Platform TPM",
@@ -11,8 +11,22 @@
     "max_observation_age_days": 14,
     "max_source_content_age_days": 14
   },
+  "health_assessment": {
+    "state": "blocked",
+    "owner": "Platform TPM",
+    "rationale": "The rollback blocker remains active pending accountable ownership and resolution date.",
+    "source_refs": [
+      {
+        "source_id": "risk-review",
+        "locator": "https://example.com/notes/risk-review"
+      }
+    ]
+  },
   "artifact_quality": "pass",
+  "reported_program_health": "blocked",
+  "claim_health_floor": "blocked",
   "program_health": "blocked",
+  "health_consistency": "consistent",
   "summary": {
     "sources": 4,
     "claims": 4,

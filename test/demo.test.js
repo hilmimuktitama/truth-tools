@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync, statSync } from "node:fs";
 import test from "node:test";
 
-import { loadSiblings, mapProgramArtifact, readProgramArtifact, runDemo, siblingSections } from "../scripts/demo.js";
+import { demoPayload, findRawBodies, loadSiblings, mapProgramArtifact, readProgramArtifact, runDemo, siblingSections, stripRawBodies } from "../scripts/demo.js";
 import { reviewTruth } from "../src/review.js";
 import { timelineDiff } from "../src/timeline-diff.js";
 import { freshnessRows } from "../apps/demo/app.js";
@@ -59,6 +59,29 @@ test("the fixed fixture is pass quality and blocked health", () => {
   assert.equal(review.summary.deprecations, 0);
 });
 
+test("the facts-only demo scenario has exact safe output and unknown health", async () => {
+  const factsOnly = readJson("../examples/launch-readiness/status-artifact-facts-only.json");
+  const review = reviewTruth(factsOnly);
+  const payload = await demoPayload();
+
+  assert.equal(factsOnly.kind, "status_artifact");
+  assert.equal(factsOnly.schema_version, "2.0.0");
+  assert.equal(factsOnly.health_assessment, undefined);
+  assert.deepEqual(factsOnly.claims.map(({ kind, subject, value }) => ({ kind, subject, value })), [
+    { kind: "fact", subject: "release.ready", value: false }
+  ]);
+  assert.equal(review.artifact_quality, "needs_review");
+  assert.equal(review.reported_program_health, null);
+  assert.equal(review.claim_health_floor, "none");
+  assert.equal(review.program_health, "unknown");
+  assert.equal(review.health_consistency, "missing");
+  assert.deepEqual(review.findings.issues.map((item) => item.type), ["missing_health_assessment"]);
+  assert.deepEqual(payload.factsOnly, factsOnly);
+  assert.deepEqual(payload.factsOnlyReview, review);
+  assert.equal(/raw/i.test(JSON.stringify(payload.factsOnly)), false);
+  assert.equal(/raw|source_ref/i.test(factsOnly.claims.map((claim) => claim.text).join(" ")), false);
+});
+
 test("the fixed review reports timeline drift from the evidence pack", () => {
   const fixed = readJson("../examples/launch-readiness/evidence-pack.json");
   const review = reviewTruth(fixed);
@@ -93,6 +116,14 @@ test("the demo data file mirrors the fixtures and reviews", async () => {
   assert.equal(TRUTH_DEMO.fixedReview.artifact_quality, "pass");
   assert.equal(TRUTH_DEMO.drift.summary.changed, 4);
   assert.equal(TRUTH_DEMO.version, JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version);
+});
+
+test("demo sanitizer strips case-insensitive raw aliases in source metadata but keeps claim text", () => {
+  const input = { claims: [{ text: "Keep this claim text." }], sources: [{ fields: { RAWContent: "secret", status: "ready" }, metadata: { nested: { Data: "secret" } } }] };
+  const safe = stripRawBodies(input);
+  assert.equal(safe.claims[0].text, "Keep this claim text.");
+  assert.equal(findRawBodies(safe).length, 0);
+  assert.equal(safe.sources[0].fields.status, "ready");
 });
 
 test("plan fixtures declare the public-safe marker", () => {
@@ -202,9 +233,9 @@ test("the Program Truth example passes through canonical and reviews pass + bloc
 
   const artifact = mapProgramArtifact(program);
   assert.equal(artifact.kind, "status_artifact");
-  assert.equal(artifact.schema_version, "1.0.0");
+  assert.equal(artifact.schema_version, "2.0.0");
   assert.equal(artifact.as_of, "2026-08-11T09:00:00.000Z");
-  assert.equal(artifact.sources.length, 5);
+  assert.equal(artifact.sources.length, 6);
   assert.equal(artifact.claims.length, 8);
   assert.equal(artifact.claims.every((claim) => claim.state === "active"), true);
   // Program Truth now emits the canonical shape: the mapper passes it through

@@ -2,11 +2,13 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
+import { validateTruthReview } from "../src/contracts.js";
 import { renderReviewMarkdown } from "../src/report.js";
 import { doctorTruthTools, reviewTruth } from "../src/review.js";
 
 function baseInput() {
   return {
+    schema_version: "2.0.0",
     as_of: "2026-08-11T00:00:00.000Z",
     initiative: { name: "Checkout migration", owner: "Platform TPM" },
     policy: { max_observation_age_days: 14, max_source_content_age_days: 14 },
@@ -14,6 +16,12 @@ function baseInput() {
       { id: "jira", type: "jira", observed_at: "2026-08-10T00:00:00.000Z" },
       { id: "decision", type: "decision-log", observed_at: "2026-08-09T00:00:00.000Z" }
     ],
+       health_assessment: {
+         state: "on_track",
+      owner: "Platform TPM",
+      rationale: "The active evidence contains facts only.",
+      source_refs: [{ source_id: "jira", locator: "https://example.atlassian.net/browse/PLAT-123" }]
+    },
     claims: [
       {
         id: "date",
@@ -38,8 +46,9 @@ test("returns pass quality and on-track health for a canonical artifact", () => 
   assert.equal(review.findings.deprecations.length, 0);
 });
 
-test("a blocker claim makes program_health blocked while quality stays pass", () => {
+test("a blocker claim makes program_health blocked while quality stays pass when health agrees", () => {
   const input = baseInput();
+  input.health_assessment.state = "blocked";
   input.claims.push({
     id: "b1",
     kind: "blocker",
@@ -56,6 +65,18 @@ test("a blocker claim makes program_health blocked while quality stays pass", ()
   assert.equal(review.summary.blockers, 1);
 });
 
+test("on_track and at_risk health conflict with an active blocker and fail quality", () => {
+  for (const state of ["on_track", "at_risk"]) {
+    const input = baseInput();
+    input.health_assessment.state = state;
+    input.claims.push({ id: `b-${state}`, kind: "blocker", text: "Release is blocked.", owner: "Team", due_at: "2026-08-14", source_refs: [{ source_id: "decision", locator: "source:decision" }] });
+    const review = reviewTruth(input);
+    assert.equal(review.program_health, "blocked");
+    assert.equal(review.artifact_quality, "fail");
+    assert.equal(review.findings.issues.some((item) => item.type === "health_assessment_conflicts_with_blocker"), true);
+  }
+});
+
 test("risks and unknowns make program_health at_risk", () => {
   const risk = baseInput();
   risk.claims[0].kind = "risk";
@@ -64,6 +85,108 @@ test("risks and unknowns make program_health at_risk", () => {
   const unknown = baseInput();
   unknown.claims[0].kind = "unknown";
   assert.equal(reviewTruth(unknown).program_health, "at_risk");
+});
+
+test("explicit unknown health understates an active risk", () => {
+  const input = baseInput();
+  input.claims[0].kind = "risk";
+  input.claims[0].owner = "Platform TPM";
+  input.claims[0].mitigation = "Track the remaining release evidence.";
+  input.health_assessment.state = "unknown";
+
+  const review = reviewTruth(input);
+
+  assert.equal(review.artifact_quality, "needs_review");
+  assert.equal(review.program_health, "at_risk");
+  assert.equal(review.health_consistency, "understated");
+  assert.equal(review.findings.issues.some((item) => item.type === "health_assessment_understates_active_signals"), true);
+});
+
+test("recommended actions only include active blocker, risk, and unknown claims", () => {
+  const input = baseInput();
+  input.claims.push(
+    { id: "old-blocker", kind: "blocker", state: "historical", text: "Old blocker.", source_refs: [{ source_id: "decision", locator: "old" }] },
+    { id: "old-risk", kind: "risk", state: "superseded", text: "Old risk.", source_refs: [{ source_id: "decision", locator: "old" }] },
+    { id: "active-unknown", kind: "unknown", text: "Open question.", owner: "Team", source_refs: [{ source_id: "decision", locator: "current" }] }
+  );
+  const actions = reviewTruth(input).recommended_actions;
+  assert.deepEqual(actions.filter((action) => action.claim_id).map((action) => action.claim_id), ["active-unknown"]);
+});
+
+test("bounds generated actions from max-length claim text to a safe single line", () => {
+  const input = baseInput();
+  input.health_assessment.state = "at_risk";
+  input.claims[0] = {
+    id: "long-risk",
+    kind: "risk",
+    text: "x".repeat(4096),
+    owner: "Team",
+    mitigation: "Review the risk.",
+    source_refs: [{ source_id: "decision", locator: "https://example.com/decisions/long-risk" }]
+  };
+
+  const review = reviewTruth(input);
+  const action = review.recommended_actions.find((item) => item.claim_id === "long-risk");
+
+  assert.ok(action);
+  assert.equal(action.action.length, 4096);
+  assert.equal(/[\r\n]/u.test(action.action), false);
+  assert.equal(validateTruthReview(review).valid, true);
+});
+
+test("SourceRef revision only emits canonical scalar values", () => {
+  const input = baseInput();
+  input.sources[0].revision = { object: "must not escape" };
+  input.claims[0].source_refs[0].revision = { nested: true };
+
+  const review = reviewTruth(input);
+  assert.equal(Object.hasOwn(review.sources[0], "revision"), false);
+  assert.equal(Object.hasOwn(review.claims[0].source_refs[0], "revision"), false);
+  assert.deepEqual(
+    review.findings.issues
+      .filter((item) => item.type === "invalid_revision")
+      .map((item) => item.location),
+    ["sources[0].revision", "claims[0].source_refs[0].revision"]
+  );
+  assert.equal(review.findings.issues.filter((item) => item.type === "invalid_revision").every((item) => item.severity === "blocking"), true);
+});
+
+test("unsupported input fields and recommended actions are deterministically bounded", () => {
+  const input = baseInput();
+  for (let index = 0; index < 401; index += 1) input[`unsupported_${index}`] = true;
+  for (let index = 0; index < 205; index += 1) {
+    input.claims.push({
+      id: `unknown-${index}`,
+      kind: "unknown",
+      text: `Open question ${index}.`,
+      owner: "Team",
+      source_refs: [{ source_id: "decision", locator: `current:${index}` }]
+    });
+  }
+
+  const review = reviewTruth(input);
+  assert.ok(review.recommended_actions.length <= 200);
+  assert.equal(review.recommended_actions.length, 200);
+  assert.equal(review.findings.issues.some((item) => item.type === "unsupported_top_level_field_truncated"), true);
+  assert.equal(review.findings.issues.some((item) => item.type === "recommended_actions_truncated"), true);
+  assert.equal(review.artifact_quality, "fail");
+});
+
+test("resource bounds produce blocking findings without crashing", () => {
+  const input = baseInput();
+  input.claims[0].text = "x".repeat(4097);
+  input.claims[0].value = "x".repeat(2049);
+  input.sources[0].access_caveats = Array.from({ length: 21 }, () => "caveat");
+  input.claims[0].source_refs = Array.from({ length: 21 }, (_, index) => ({ source_id: "jira", locator: `ref:${index}` }));
+  input.timeline = Array.from({ length: 501 }, (_, index) => ({ id: `t-${index}`, title: "Item" }));
+  const review = reviewTruth(input);
+  const types = review.findings.issues.map((item) => item.type);
+  assert.equal(review.artifact_quality, "fail");
+  assert.ok(types.includes("claim_text_too_large"));
+  assert.ok(types.includes("claim_scalar_too_large"));
+  assert.ok(types.includes("too_many_access_caveats"));
+  assert.ok(types.includes("too_many_source_refs"));
+  assert.ok(types.includes("too_many_timeline_items"));
 });
 
 test("program_health is unknown when no claim is classified", () => {
@@ -197,6 +320,7 @@ test("source refs dedupe by full structured identity, not source_id alone", () =
 
 test("captured_at deprecation is emitted even when observed_at is present", () => {
   const input = baseInput();
+  input.schema_version = "2.0.0";
   input.sources[0].captured_at = "2026-08-09T00:00:00.000Z";
 
   const review = reviewTruth(input);
@@ -248,6 +372,112 @@ test("rejects raw source bodies and omits them from the output", () => {
   assert.equal(review.sources[0].content, undefined);
   assert.equal(review.findings.issues.filter((item) => item.type === "raw_source_content").length, 1);
   assert.equal(review.findings.issues.some((item) => item.type === "unsupported_source_field" && item.field === "content"), false);
+});
+
+test("recursively rejects raw-like keys in source fields and metadata with precise paths", () => {
+  const input = baseInput();
+  input.sources[0].fields = {
+    safe: { label: "contentful", note: "payload status" },
+    nested: [{ content: "secret" }, { deeper: { document: "body" } }]
+  };
+  input.sources[0].metadata = {
+    safe: { body_text: "metadata only" },
+    nested: { raw: "secret", deeper: { data: "body" } }
+  };
+
+  const review = reviewTruth(input);
+  const rawFindings = review.findings.issues.filter((item) => item.type === "raw_source_content");
+
+  assert.equal(review.artifact_quality, "fail");
+  assert.deepEqual(
+    rawFindings.map((item) => item.location),
+    [
+      "sources[0].fields.nested[0].content",
+      "sources[0].fields.nested[1].deeper.document",
+      "sources[0].metadata.nested.raw",
+      "sources[0].metadata.nested.deeper.data"
+    ]
+  );
+  assert.deepEqual(review.sources[0].fields, {
+    safe: { label: "contentful", note: "payload status" },
+    nested: [{}, { deeper: {} }]
+  });
+  assert.deepEqual(review.sources[0].metadata, {
+    safe: { body_text: "metadata only" },
+    nested: { deeper: {} }
+  });
+});
+
+test("raw key checks are case-insensitive and reject dangerous prototype keys safely", () => {
+  const input = baseInput();
+  input.sources[0].RAWContent = "secret";
+  input.sources[0].fields = {
+    nested: { BODY: "secret", Raw_Content: "secret", ["__proto__"]: { injected: true }, constructor: "bad" }
+  };
+  input.sources[0].metadata = { Data: "secret", prototype: { polluted: true } };
+
+  const review = reviewTruth(input);
+  const findings = review.findings.issues;
+
+  assert.equal(review.artifact_quality, "fail");
+  assert.equal(findings.some((item) => item.type === "raw_source_content" && item.location === "sources[0].RAWContent"), true);
+  assert.equal(findings.some((item) => item.type === "raw_source_content" && item.location === "sources[0].fields.nested.BODY"), true);
+  assert.equal(findings.some((item) => item.type === "raw_source_content" && item.location === "sources[0].fields.nested.Raw_Content"), true);
+  assert.equal(findings.some((item) => item.type === "raw_source_content" && item.location === "sources[0].metadata.Data"), true);
+  assert.equal(findings.some((item) => item.type === "dangerous_source_field"), true);
+  assert.equal(Object.hasOwn(review.sources[0].fields.nested, "__proto__"), false);
+  assert.equal(Object.hasOwn(review.sources[0].fields.nested, "constructor"), false);
+});
+
+test("raw schema aliases and compounds are rejected while content_hash remains safe", () => {
+  const input = baseInput();
+  input.sources[0].content_hash = "sha256:" + "a".repeat(64);
+  for (const key of ["description", "message", "html", "markdown", "data", "rawContent", "descriptionMarkdown"]) input.sources[0].fields = { ...(input.sources[0].fields ?? {}), [key]: "secret" };
+  const review = reviewTruth(input);
+  assert.equal(review.sources[0].content_hash, input.sources[0].content_hash);
+  assert.equal(review.findings.issues.filter((item) => item.type === "raw_source_content").length, 7);
+});
+
+test("metadata aggregate limits reject before unbounded serialization", () => {
+  const input = baseInput();
+  input.sources[0].metadata = Object.fromEntries(Array.from({ length: 101 }, (_, index) => [`k${index}`, "v"]));
+  const review = reviewTruth(input);
+  assert.equal(review.artifact_quality, "fail");
+  assert.equal(review.findings.issues.some((item) => item.type === "source_metadata_object_too_large"), true);
+});
+
+test("dotted metadata keys use unambiguous bracket paths", () => {
+  const input = baseInput();
+  input.sources[0].metadata = { "release.version": { data: "secret" } };
+  const review = reviewTruth(input);
+  assert.equal(review.findings.issues.some((item) => item.location === 'sources[0].metadata["release.version"].data'), true);
+});
+
+test("non-object source fields and metadata are blocking and omitted", () => {
+  const input = baseInput();
+  input.sources[0].fields = "not an object";
+  input.sources[0].metadata = ["not an object"];
+
+  const review = reviewTruth(input);
+
+  assert.equal(review.artifact_quality, "fail");
+  assert.equal(review.sources[0].fields, undefined);
+  assert.equal(review.sources[0].metadata, undefined);
+  assert.equal(review.findings.issues.some((item) => item.type === "invalid_source_fields" && item.severity === "blocking"), true);
+  assert.equal(review.findings.issues.some((item) => item.type === "invalid_source_metadata" && item.severity === "blocking"), true);
+});
+
+test("does not flag harmless substrings in source fields or metadata", () => {
+  const input = baseInput();
+  input.sources[0].fields = { contentful: "safe", body_text: "safe", rawness: "safe" };
+  input.sources[0].metadata = { payload_status: "safe", documentation: "safe", database: "safe" };
+
+  const review = reviewTruth(input);
+
+  assert.equal(review.artifact_quality, "pass");
+  assert.equal(review.findings.issues.some((item) => item.type === "raw_source_content"), false);
+  assert.deepEqual(review.sources[0].fields, input.sources[0].fields);
+  assert.deepEqual(review.sources[0].metadata, input.sources[0].metadata);
 });
 
 test("a source id remains citable even when the source fails normalization", () => {
@@ -304,7 +534,6 @@ test("source refs accept Timeline Truth provenance fields", () => {
       heading: "Status",
       tableRow: 3,
       line: 12,
-      text: "In Progress"
     }
   ];
 
@@ -318,7 +547,6 @@ test("source refs accept Timeline Truth provenance fields", () => {
     heading: "Status",
     tableRow: 3,
     line: 12,
-    text: "In Progress"
   });
 });
 
@@ -340,7 +568,7 @@ test("non-positive integer provenance fields are dropped, not guessed", () => {
   assert.equal(review.claims[0].source_refs[0].tableRow, undefined);
   assert.equal(review.claims[0].source_refs[0].line, undefined);
   assert.equal(review.claims[0].source_refs[0].heading, "Status");
-  assert.equal(review.claims[0].source_refs[0].text, "In Progress");
+   assert.equal(review.claims[0].source_refs[0].text, undefined);
   assert.equal(review.artifact_quality, "pass");
 });
 
@@ -401,9 +629,16 @@ test("blocks object and null claim values", () => {
 
 test("normalizes captured_at, sourceId, and string refs with deprecation findings", () => {
   const input = {
+    schema_version: "2.0.0",
     as_of: "2026-08-11T00:00:00.000Z",
     initiative: { name: "Legacy input" },
     sources: [{ sourceId: "legacy-source", type: "note", captured_at: "2026-08-10T00:00:00.000Z" }],
+    health_assessment: {
+      state: "on_track",
+      owner: "Platform TPM",
+      rationale: "Legacy facts are explicitly reported on track.",
+      source_refs: [{ source_id: "legacy-source", locator: "source:legacy" }]
+    },
     claims: [
       {
         id: "legacy-claim",
@@ -501,6 +736,84 @@ test("invalid source URLs need review and are omitted from normalized output", (
   assert.equal(review.artifact_quality, "needs_review");
   assert.equal(review.sources[0].url, undefined);
   assert.equal(review.findings.issues.some((item) => item.type === "invalid_source_url"), true);
+});
+
+test("blocks source URLs with userinfo or credential-like query parameters", () => {
+  for (const url of [
+    "https://user:password@example.com/source",
+    "https://example.com/source?access_token=secret",
+    "https://example.com/source?api_key=secret",
+    "https://example.com/source?oauth_signature=secret"
+  ]) {
+    const input = baseInput();
+    input.sources[0].url = url;
+
+    const review = reviewTruth(input);
+
+    assert.equal(review.artifact_quality, "fail", url);
+    assert.equal(review.sources[0].url, undefined, url);
+    assert.equal(
+      review.findings.issues.some((item) => item.type === "privacy_source_url" && item.severity === "blocking"),
+      true,
+      url
+    );
+  }
+});
+
+test("blocks credential-like source-ref URLs and HTTP(S) locators, including fragments", () => {
+  const credentialUrls = [
+    "https://example.com/source?x-api-key=secret",
+    "https://example.com/source?AWSAccessKeyId=secret",
+    "https://example.com/source?jwt=secret",
+    "https://example.com/source?session_id=secret",
+    "https://example.com/source?client_assertion=secret",
+    "https://example.com/source#signature=secret"
+  ];
+
+  for (const url of credentialUrls) {
+    for (const field of ["url", "locator"]) {
+      const input = baseInput();
+      input.claims[0].source_refs = [{ source_id: "jira", locator: "https://example.com/safe", [field]: url }];
+
+      const review = reviewTruth(input);
+
+      assert.equal(review.artifact_quality, "fail", `${field}: ${url}`);
+      assert.equal(
+        review.findings.issues.some((item) => item.type === "privacy_source_url" && item.location.includes(field)),
+        true,
+        `${field}: ${url}`
+      );
+      assert.equal(review.claims[0]?.source_refs[0]?.[field], undefined, `${field}: ${url}`);
+    }
+  }
+});
+
+test("does not false-positive safe URL names such as author or tokenizer", () => {
+  const input = baseInput();
+  input.sources[0].url = "https://example.com/source?author=tokenizer";
+  input.claims[0].source_refs = [
+    {
+      source_id: "jira",
+      locator: "https://example.com/source?author=tokenizer#section",
+      url: "https://example.com/source?author=tokenizer#tokenizer"
+    }
+  ];
+
+  const review = reviewTruth(input);
+
+  assert.equal(review.artifact_quality, "pass");
+  assert.equal(review.findings.issues.some((item) => item.type === "privacy_source_url"), false);
+});
+
+test("retains source URLs with ordinary query parameters", () => {
+  const input = baseInput();
+  input.sources[0].url = "https://example.com/source?project=truth-tools&page=2";
+
+  const review = reviewTruth(input);
+
+  assert.equal(review.artifact_quality, "pass");
+  assert.equal(review.sources[0].url, input.sources[0].url);
+  assert.equal(review.findings.issues.some((item) => item.type === "privacy_source_url"), false);
 });
 
 test("a source updated after as_of needs review", () => {
@@ -688,6 +1001,7 @@ test("renders quality, health, and safe single-line Markdown", () => {
     due_at: "2026-08-14",
     source_refs: [{ source_id: "decision", locator: "https://example.com/decisions/checkout-launch" }]
   });
+  input.health_assessment.state = "blocked";
   input.sources[0].captured_at = "2026-08-10T00:00:00.000Z";
   delete input.sources[0].observed_at;
 

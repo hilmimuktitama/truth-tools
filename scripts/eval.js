@@ -21,12 +21,19 @@ function deepClone(value) {
 
 const BASE_ARTIFACT = {
   as_of: "2026-08-11T00:00:00.000Z",
+  schema_version: "2.0.0",
   initiative: { name: "Synthetic case" },
   policy: { max_observation_age_days: 14, max_source_content_age_days: 14 },
   sources: [
     { id: "s1", type: "jira", observed_at: "2026-08-10T00:00:00.000Z" },
     { id: "s2", type: "note", observed_at: "2026-08-09T00:00:00.000Z" }
   ],
+  health_assessment: {
+    state: "on_track",
+    owner: "Platform TPM",
+    rationale: "The active claims are facts only.",
+    source_refs: [{ source_id: "s1", locator: "https://example.atlassian.net/browse/PLAT-1" }]
+  },
   claims: [
     {
       id: "c1",
@@ -267,6 +274,7 @@ function generateSyntheticCases(count) {
     const mutation = MUTATIONS[Math.floor(random() * MUTATIONS.length)];
     const artifact = deepClone(BASE_ARTIFACT);
     mutation.apply(artifact);
+    artifact.health_assessment.state = mutation.expect.program_health;
     cases.push({
       id: `synth-${String(index + 1).padStart(3, "0")}`,
       description: `synthetic: ${mutation.name}`,
@@ -280,11 +288,22 @@ function generateSyntheticCases(count) {
 
 function mergeBase(base, overrides) {
   const merged = { ...(base ?? {}), ...(overrides ?? {}) };
+  // Handwritten cases intentionally replace the claims collection. Keep the
+  // fixture's explicit health assessment synchronized with that replacement so
+  // evaluation isolates the declared defect instead of accidentally adding a
+  // health-consistency defect to every health case.
+  if (overrides?.claims !== undefined && overrides.health_assessment === undefined) {
+    const kinds = new Set((overrides.claims ?? [])
+      .filter((claim) => claim.state !== "superseded" && claim.state !== "historical")
+      .map((claim) => claim.kind));
+    const state = kinds.has("blocker") ? "blocked" : kinds.has("risk") || kinds.has("unknown") ? "at_risk" : kinds.has("fact") ? "on_track" : "unknown";
+    merged.health_assessment = { ...(base?.health_assessment ?? {}), state };
+  }
   return merged;
 }
 
 export function evaluateCase(testCase) {
-  const actual = reviewTruth(testCase.input);
+  const actual = reviewTruth(mergeBase(BASE_ARTIFACT, testCase.input));
   const expected = testCase.expect;
   const problems = [];
 

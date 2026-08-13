@@ -6,3 +6,9 @@ npm-debug.log*
 .DS_Store
 coverage/
 *.log
+evaluation/private-inputs/
+evaluation/private-labels/
+evaluation/private-results/
+evaluation/real-world/input/
+evaluation/real-world/labels/
+evaluation/real-world/results/

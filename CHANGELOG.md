@@ -6,6 +6,24 @@ aims to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- Finalized the shared Capture Truth 0.5 Source, SourceRef, and CandidateClaim
+  contracts. CandidateClaim now supports `unreviewed`,
+  `approved_for_portable`, and `rejected` states with conditional reviewer
+  metadata; unreviewed extraction does not require reviewer fields.
+- Kept SourceRef locator-only: it has no verbatim `text` field, and Source
+  metadata remains subject to recursive raw-body privacy rejection.
+
+## [0.4.0] — 2026-08-13
+
+### Added
+
+- StatusArtifact and TruthReview v2 contracts with explicit, accountable health assessment.
+- Deterministic reported health, claim floor, final health, and consistency output.
+- Recursive metadata privacy bounds and canonical SourceRef locators without verbatim text.
+- Public-safe facts-only and blocked demo scenarios plus local-only private-evaluation guidance.
+
 ## [0.3.1] — 2026-08-13
 
 ### Added

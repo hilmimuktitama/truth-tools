@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { evaluateCase, runEvaluation, summarize } from "../scripts/eval.js";
+import { evaluatePrivateLabels, inspectPrivateFiles, resolveOutputPath, syntheticEvaluation } from "../evaluation/real-world/run-private-evaluation.js";
 
 const EVAL_URL = new URL("../scripts/eval.js", import.meta.url);
 
@@ -113,7 +114,7 @@ test("defect metrics report seeded detection recall and false positives", () => 
   assert.equal(result.defect.detectionRecall, 1);
   assert.equal(result.defect.casesWithUnexpectedFindings, 0);
   assert.equal(result.defect.unexpectedFindings, 0);
-  assert.equal(result.ok, true);
+  assert.equal(result.ok, true, JSON.stringify(result));
 });
 
 test("eval:synthetic runs the deterministic seeded generator in CI", () => {
@@ -138,4 +139,112 @@ test("the cases file is valid JSON with version and cases", () => {
   assert.equal(raw.version, "1.0.0");
   assert.ok(Array.isArray(raw.cases));
   assert.ok(raw.base.as_of);
+});
+
+test("private synthetic harness executes the review engine and reports complete metrics", () => {
+  const result = syntheticEvaluation();
+
+  assert.equal(result.ok, true, JSON.stringify(result));
+  assert.equal(result.mode, undefined);
+  assert.equal(result.findings.issue_precision, 1);
+  assert.equal(result.findings.issue_recall, 1);
+  assert.deepEqual(result.case_results[0].false_positive_types, []);
+  assert.deepEqual(result.case_results[0].false_negative_types, []);
+});
+
+test("private metrics handle zero expected and actual findings", () => {
+  const labels = ["reviewer_a", "reviewer_b", "adjudicator"].map((reviewer) => ({
+    id: "clean",
+    reviewer,
+    defect_types: [],
+    health: "on_track",
+    compatibility: true,
+    tolerated: false,
+    artifact_quality: "pass"
+  }));
+  const artifact = {
+    id: "clean",
+    value: {
+      schema_version: "2.0.0",
+      as_of: "2026-08-11T00:00:00.000Z",
+      sources: [{ id: "s1", type: "note", observed_at: "2026-08-10T00:00:00.000Z" }],
+      health_assessment: { state: "on_track", owner: "Team", rationale: "Ready.", source_refs: [{ source_id: "s1", locator: "https://example.invalid/status" }] },
+      claims: [{ id: "c1", kind: "fact", subject: "scope", value: "ready", text: "Ready.", source_refs: [{ source_id: "s1", locator: "https://example.invalid/status" }] }]
+    }
+  };
+  const result = evaluatePrivateLabels([artifact], labels);
+
+  assert.equal(result.findings.issue_precision, null);
+  assert.equal(result.findings.issue_recall, null);
+  assert.equal(result.findings.false_positive, 0);
+  assert.equal(result.findings.false_negative, 0);
+});
+
+test("private reviewer agreement ignores reviewer identity", () => {
+  const labels = ["reviewer_a", "reviewer_b", "adjudicator"].map((reviewer) => ({
+    id: "agreement",
+    reviewer,
+    defect_types: ["missing_health_assessment"],
+    health: "unknown",
+    compatibility: false,
+    tolerated: false,
+    artifact_quality: "fail"
+  }));
+  const artifact = { id: "agreement", value: { schema_version: "2.0.0", as_of: "2026-08-11T00:00:00.000Z", sources: [{ id: "s1", type: "note", observed_at: "2026-08-10T00:00:00.000Z" }], claims: [{ id: "c1", kind: "fact", text: "Ready.", source_refs: [{ source_id: "s1", locator: "https://example.invalid/status" }] }] } };
+  const result = evaluatePrivateLabels([artifact], labels);
+
+  assert.equal(result.reviewer_agreement.matching, 1);
+  assert.equal(result.reviewer_agreement.rate, 1);
+});
+
+test("private output is confined to the ignored result directory", () => {
+  assert.match(resolveOutputPath(), /evaluation\/private-results\/private-evaluation\.json$/);
+  assert.throws(() => resolveOutputPath("/tmp/private-evaluation.json"), /must remain under evaluation\/private-results/);
+});
+
+test("private inputs reject credentials, private URLs, and raw bodies", () => {
+  for (const key of ["token", "api_key", "apiKey", "access_token", "client_secret", "password"]) {
+    assert.throws(() => inspectPrivateFiles([{ name: "credential.json", text: JSON.stringify({ [key]: "secret" }) }]), /credential-like material/);
+  }
+  assert.throws(() => inspectPrivateFiles([{ name: "url.json", text: '{"url":"https://private.example.test/status"}' }]), /identifying URL/);
+  for (const key of ["rawContent", "raw_body", "data", "all", "descriptionMarkdown", "message"]) {
+    assert.throws(() => inspectPrivateFiles([{ name: "body.json", text: JSON.stringify({ [key]: "source text" }) }]), /raw source body/);
+  }
+});
+
+test("private harness accepts a realistic metadata-only file path and claim text", () => {
+  assert.doesNotThrow(() => inspectPrivateFiles([{
+    name: "exports/launch-readiness/status.json",
+    value: {
+      kind: "status_artifact",
+      sources: [{ id: "release", path: "exports/launch-readiness/status.json", fields: { status: "ready" } }],
+      claims: [{ id: "c1", text: "The release is ready.", source_refs: [{ source_id: "release", locator: "status:release" }] }]
+    },
+    text: JSON.stringify({ path: "exports/launch-readiness/status.json", claims: [{ text: "The release is ready." }] })
+  }]));
+});
+
+test("npm pack excludes private evaluation paths while shipping public evaluation materials", () => {
+  const packageRoot = new URL("../", import.meta.url);
+  const run = spawnSync("npm", ["pack", "--dry-run", "--json"], {
+    cwd: packageRoot,
+    encoding: "utf8"
+  });
+
+  assert.equal(run.status, 0, run.stderr);
+  const packedFiles = JSON.parse(run.stdout)[0].files.map(({ path }) => path);
+  const publicEvaluationFiles = [
+    "evaluation/README.md",
+    "evaluation/cases.json",
+    "evaluation/real-world/README.md",
+    "evaluation/real-world/run-private-evaluation.js",
+    "evaluation/real-world/adjudication-guide.md",
+    "evaluation/real-world/anonymization-checklist.md",
+    "evaluation/real-world/labeling-guide.md",
+    "evaluation/real-world/label.schema.json",
+    "evaluation/real-world/example-label.json"
+  ];
+
+  for (const path of publicEvaluationFiles) assert.ok(packedFiles.includes(path), `${path} should be packed`);
+  assert.ok(packedFiles.every((path) => !path.startsWith("evaluation/private-")));
 });

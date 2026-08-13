@@ -21,7 +21,7 @@ export function listTruthTools() {
       outputSchema: {
         type: "object",
         required: ["ok", "checks"],
-        properties: {
+      properties: {
           ok: { type: "boolean" },
           checks: { type: "array", items: { type: "object" } }
         }
@@ -49,6 +49,69 @@ export function callTruthToolForMcp(name, args = {}) {
   };
 }
 
+function sourceMetadataSchema() {
+  return { "$ref": "#/$defs/source_metadata_object" };
+}
+
+function sourceMetadataValueSchema() {
+  return { "$ref": "#/$defs/source_metadata_value" };
+}
+
+function sourceMetadataDefinitions() {
+  return {
+    source_metadata_object: {
+      type: "object",
+      maxProperties: 100,
+      propertyNames: {
+        not: {
+          anyOf: [
+            {
+              pattern: "^[^A-Za-z0-9]*(?:[Cc][Oo][Nn][Tt][Ee][Nn][Tt][Ss]?|[Bb][Oo][Dd][Yy]|[Rr][Aa][Ww](?:[^A-Za-z0-9]*(?:[Bb][Oo][Dd][Yy]|[Cc][Oo][Nn][Tt][Ee][Nn][Tt]|[Dd][Aa][Tt][Aa]))?|[Pp][Aa][Yy][Ll][Oo][Aa][Dd]|[Dd][Oo][Cc][Uu][Mm][Ee][Nn][Tt]|[Dd][Ee][Ss][Cc][Rr][Ii][Pp][Tt][Ii][Oo][Nn](?:[^A-Za-z0-9]*[Mm][Aa][Rr][Kk][Dd][Oo][Ww][Nn])?|[Mm][Ee][Ss][Ss][Aa][Gg][Ee]|[Hh][Tt][Mm][Ll]|[Mm][Aa][Rr][Kk][Dd][Oo][Ww][Nn]|[Pp][Rr][Oo][Ss][Ee]|[Bb][Ll][Oo][Bb]|[Tt][Ee][Xx][Tt]|[Dd][Aa][Tt][Aa])[^A-Za-z0-9]*$"
+            },
+            { pattern: "^(?:__[Pp][Rr][Oo][Tt][Oo]__|[Pp][Rr][Oo][Tt][Oo][Tt][Yy][Pp][Ee]|[Cc][Oo][Nn][Ss][Tt][Rr][Uu][Cc][Tt][Oo][Rr])$" }
+          ]
+        }
+      },
+      additionalProperties: { "$ref": "#/$defs/source_metadata_value" }
+    },
+    source_metadata_value: {
+      anyOf: [
+        { type: ["string", "number", "boolean", "null"], maxLength: 2048 },
+        sourceMetadataSchema(),
+        { type: "array", maxItems: 100, items: sourceMetadataValueSchema() }
+      ]
+    }
+  };
+}
+
+function canonicalSourceRefSchema() {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["source_id", "locator"],
+    properties: {
+      source_id: { type: "string", minLength: 1, maxLength: 2048 },
+      locator: { type: "string", minLength: 1, maxLength: 2048 },
+      note: { type: "string", minLength: 1, maxLength: 2048 },
+      path: { type: ["string", "null"], maxLength: 2048 },
+      url: { type: ["string", "null"], maxLength: 2048 },
+      observed_at: {
+        type: ["string", "null"],
+        pattern: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,9})?(Z|[+-]\\d{2}:\\d{2})$"
+      },
+      source_updated_at: {
+        type: ["string", "null"],
+        pattern: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,9})?(Z|[+-]\\d{2}:\\d{2})$"
+      },
+      revision: { type: ["string", "number", "null"], maxLength: 2048 },
+      content_hash: { type: ["string", "null"], pattern: "^(?:sha256:)?[a-f0-9]{64}$" },
+      heading: { type: "string", minLength: 1, maxLength: 2048 },
+      tableRow: { type: "integer", minimum: 1 },
+      line: { type: "integer", minimum: 1 }
+    }
+  };
+}
+
 function reviewInputSchema() {
   // Mirrors what the engine accepts: the canonical StatusArtifact shape plus
   // the compatibility normalizers (captured_at, sourceId, plain-string
@@ -59,10 +122,13 @@ function reviewInputSchema() {
   // boundary stays read-only and safe. When both an alias and the canonical
   // field are present, the canonical field wins.
   return {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
     type: "object",
-    required: ["as_of"],
+     required: ["kind", "schema_version", "as_of"],
     additionalProperties: false,
     properties: {
+      kind: { const: "status_artifact" },
+      schema_version: { const: "2.0.0" },
       as_of: { type: "string", description: "ISO date or datetime used as the reproducible review cutoff." },
       initiative: {
         type: "object",
@@ -72,6 +138,22 @@ function reviewInputSchema() {
           owner: { type: "string", minLength: 1 },
           objective: { type: "string", minLength: 1 }
         }
+      },
+      health_assessment: {
+        type: "object",
+        additionalProperties: false,
+        required: ["state", "owner", "rationale", "source_refs"],
+        properties: {
+          state: { type: "string", enum: ["on_track", "at_risk", "blocked", "unknown"] },
+          owner: { type: "string", minLength: 1, maxLength: 2048 },
+          rationale: { type: "string", minLength: 1, maxLength: 4096 },
+           source_refs: {
+             type: "array",
+             minItems: 1,
+             maxItems: 20,
+              items: canonicalSourceRefSchema()
+           }
+         }
       },
       policy: {
         type: "object",
@@ -84,6 +166,7 @@ function reviewInputSchema() {
       },
       sources: {
         type: "array",
+        maxItems: 1000,
         items: {
           type: "object",
           additionalProperties: false,
@@ -100,18 +183,19 @@ function reviewInputSchema() {
             captured_at: { type: "string", minLength: 1, description: "Deprecated alias for observed_at; engine normalizes it and reports a deprecation finding." },
             source_updated_at: { type: "string", minLength: 1 },
             owner: { type: "string", minLength: 1 },
-            revision: {},
+             revision: { type: ["string", "number", "null"], maxLength: 2048 },
             content_hash: { type: "string", minLength: 1 },
             locator: { type: "string", minLength: 1 },
-            access_caveats: { type: "array", items: { type: "string", minLength: 1 } },
-            fields: { type: "object" },
-            metadata: { type: "object" },
+            access_caveats: { type: "array", maxItems: 20, items: { type: "string", minLength: 1, maxLength: 512 } },
+             fields: sourceMetadataSchema(),
+             metadata: sourceMetadataSchema(),
             raw_included: { type: "boolean", description: "Optional provenance metadata; raw bodies are never accepted." }
           }
         }
       },
       claims: {
         type: "array",
+        maxItems: 5000,
         items: {
           type: "object",
           additionalProperties: false,
@@ -121,14 +205,15 @@ function reviewInputSchema() {
             state: { type: "string", enum: ["active", "superseded", "historical"], default: "active" },
             subject: { type: "string", minLength: 1 },
             value: {
-              oneOf: [{ type: "string" }, { type: "number" }, { type: "boolean" }]
+              oneOf: [{ type: "string", maxLength: 2048 }, { type: "number" }, { type: "boolean" }]
             },
-            text: { type: "string", minLength: 1 },
+            text: { type: "string", minLength: 1, maxLength: 4096 },
             owner: { type: "string", minLength: 1 },
             due_at: { type: "string", minLength: 1 },
             mitigation: { type: "string", minLength: 1 },
             source_refs: {
               type: "array",
+              maxItems: 20,
               items: {
                 oneOf: [
                   { type: "string", minLength: 1, description: "Deprecated plain-string source reference; engine normalizes it and reports a deprecation finding." },
@@ -136,20 +221,19 @@ function reviewInputSchema() {
                     type: "object",
                     additionalProperties: false,
                     properties: {
-                      source_id: { type: "string", minLength: 1 },
-                      sourceId: { type: "string", minLength: 1, description: "Deprecated alias for source_id." },
-                      locator: { type: "string", minLength: 1 },
-                      note: { type: "string", minLength: 1 },
-                      path: { type: "string", minLength: 1 },
+                       source_id: { type: "string", minLength: 1, maxLength: 2048 },
+                       sourceId: { type: "string", minLength: 1, maxLength: 2048, description: "Deprecated alias for source_id." },
+                       locator: { type: "string", minLength: 1, maxLength: 2048 },
+                       note: { type: "string", minLength: 1, maxLength: 2048 },
+                       path: { type: "string", minLength: 1, maxLength: 2048 },
                       url: { type: "string", minLength: 1 },
                       observed_at: { type: "string", minLength: 1 },
                       source_updated_at: { type: "string", minLength: 1 },
-                      revision: {},
+                       revision: { type: ["string", "number", "null"], maxLength: 2048 },
                        content_hash: { type: "string", minLength: 1 },
-                       heading: { type: "string", minLength: 1 },
+                       heading: { type: "string", minLength: 1, maxLength: 2048 },
                        tableRow: { type: "integer", minimum: 1 },
                        line: { type: "integer", minimum: 1 },
-                       text: { type: "string", minLength: 1 }
                     }
                   }
                 ]
@@ -160,13 +244,16 @@ function reviewInputSchema() {
       },
       timeline: {
         type: "array",
+        maxItems: 500,
         items: timelineItemsSchema()
       },
       baseline_timeline: {
         type: "array",
+        maxItems: 500,
         items: timelineItemsSchema()
       }
-    }
+    },
+    "$defs": sourceMetadataDefinitions()
   };
 }
 
@@ -175,25 +262,26 @@ function timelineItemsSchema() {
     type: "object",
     additionalProperties: false,
     properties: {
-      id: { type: "string", minLength: 1 },
-      title: { type: "string", minLength: 1 },
+      id: { type: "string", minLength: 1, maxLength: 2048 },
+      title: { type: "string", minLength: 1, maxLength: 2048 },
       type: { type: "string", enum: ["task", "milestone"] },
       start: { type: "string", minLength: 1 },
       end: { type: "string", minLength: 1 },
-      duration: { type: "string", minLength: 1 },
-      time_window: { type: "string", minLength: 1 },
-      date_text: { type: "string", minLength: 1 },
+      duration: { type: "string", minLength: 1, maxLength: 2048 },
+      time_window: { type: "string", minLength: 1, maxLength: 2048 },
+      date_text: { type: "string", minLength: 1, maxLength: 2048 },
       date_derivation: { type: "string", enum: ["explicit", "natural", "none"] },
       evidence_grade: { type: "string", enum: ["exact", "derived", "fuzzy", "missing"] },
-      evidence_reason: { type: "string", minLength: 1 },
+      evidence_reason: { type: "string", minLength: 1, maxLength: 2048 },
       exact_date_needed: { type: "boolean" },
       missing_title: { type: "boolean" },
       dangerous_fields: { type: "array", items: { type: "string", minLength: 1 } },
-      owner: { type: "string", minLength: 1 },
-      status: { type: "string", minLength: 1 },
-      dependencies: { type: "array", items: { type: "string", minLength: 1 } },
+      owner: { type: "string", minLength: 1, maxLength: 2048 },
+      status: { type: "string", minLength: 1, maxLength: 2048 },
+      dependencies: { type: "array", maxItems: 50, items: { type: "string", minLength: 1, maxLength: 2048 } },
       source_refs: {
         type: "array",
+        maxItems: 20,
         items: {
           oneOf: [
             { type: "string", minLength: 1, description: "Deprecated plain-string source reference." },
@@ -209,12 +297,11 @@ function timelineItemsSchema() {
                 url: { type: "string", minLength: 1 },
                 observed_at: { type: "string", minLength: 1 },
                 source_updated_at: { type: "string", minLength: 1 },
-                revision: {},
+                 revision: { type: ["string", "number", "null"], maxLength: 2048 },
                  content_hash: { type: "string", minLength: 1 },
                  heading: { type: "string", minLength: 1 },
                  tableRow: { type: "integer", minimum: 1 },
                  line: { type: "integer", minimum: 1 },
-                 text: { type: "string", minLength: 1 }
               }
             }
           ]
@@ -234,7 +321,10 @@ function reviewOutputSchema() {
       "as_of",
       "policy",
       "artifact_quality",
+      "reported_program_health",
+      "claim_health_floor",
       "program_health",
+      "health_consistency",
       "summary",
       "sources",
       "claims",
@@ -248,14 +338,34 @@ function reviewOutputSchema() {
       as_of: { type: "string" },
       policy: { type: "object" },
       artifact_quality: { type: "string", enum: ["pass", "needs_review", "fail"] },
+      health_assessment: { type: "object" },
+      reported_program_health: { type: ["string", "null"], enum: ["on_track", "at_risk", "blocked", "unknown", null] },
+      claim_health_floor: { type: "string", enum: ["none", "at_risk", "blocked"] },
       program_health: { type: "string", enum: ["on_track", "at_risk", "blocked", "unknown"] },
+      health_consistency: { type: "string", enum: ["consistent", "missing", "understated", "unsupported", "conflicting"] },
       summary: { type: "object" },
       sources: { type: "array", items: { type: "object" } },
       claims: { type: "array", items: { type: "object" } },
       timeline: { type: "array", items: { type: "object" } },
       timeline_drift: { type: "object" },
       findings: { type: "object" },
-      recommended_actions: { type: "array", items: { type: "object" } }
+      recommended_actions: {
+        type: "array",
+        maxItems: 200,
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["priority", "type", "action"],
+          properties: {
+            priority: { type: "string", enum: ["P0", "P1", "P2"] },
+            type: { type: "string", enum: ["resolve_blocker", "reconcile_conflict", "fix_evidence", "mitigate_risk", "close_unknown", "improve_evidence"] },
+            claim_id: { type: "string", minLength: 1 },
+            subject: { type: "string", minLength: 1 },
+            location: { type: "string", minLength: 1 },
+            action: { type: "string", minLength: 1, maxLength: 4096 }
+          }
+        }
+      }
     }
   };
 }

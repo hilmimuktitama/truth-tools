@@ -1,6 +1,10 @@
 # Architecture
 
-Truth Tools is a deterministic evidence gate for project-status artifacts.
+Truth Tools is the deterministic review and orchestration component in an
+evidence-first technical-program reliability toolkit. Sibling/operator
+components provide provenance-preserving evidence intake, timeline compilation,
+and agent-guided status synthesis; this package validates and reviews their
+metadata-only outputs.
 This document describes the components, the data flow, and the boundaries of
 the repository.
 
@@ -45,6 +49,9 @@ source systems (Jira, decision log, meeting notes)
         v
 capture agent / adapter         <- canonical standalone packages, not here
         |
+         v
+provenance-preserving evidence intake (sibling/operator component; metadata only)
+        |
         v
 StatusArtifact (status-artifact.schema.json)
   as_of, initiative, policy, sources[], claims[], timeline[]?, baseline_timeline[]?
@@ -53,6 +60,7 @@ StatusArtifact (status-artifact.schema.json)
 truth.review (CLI and MCP use the same core)
   - normalize + strict-field checks (src/normalize.js)
   - deprecation normalizers: captured_at, sourceId, string refs
+  - pre-publication privacy checks: recursive raw-field and credentialed-URL rejection
   - freshness: observation age, content age, and snapshot gap
   - typed scalar contradictions
   - timeline drift (src/timeline-diff.js)
@@ -76,7 +84,7 @@ TruthReview (truth-review.schema.json)
 contracts workspace is private and ships only through the root `truth-tools`
 package; release automation validates its pack contents but never publishes it
 separately.
-`src/contracts.js` registers all seven schemas with Ajv (Draft 2020-12) and
+`src/contracts.js` registers all schemas with Ajv (Draft 2020-12) and
 exposes `validateStatusArtifact` / `validateTruthReview`. `scripts/
 contracts-verify.js` checks, on every run:
 
@@ -87,6 +95,13 @@ contracts-verify.js` checks, on every run:
 5. engine outputs conform to `truth-review.schema.json` — including outputs
    for failing artifacts;
 6. the checked-in timeline-drift fixture matches `timelineDiff` output.
+
+The Source, SourceRef, and CandidateClaim files are portable shared contract
+copies for Capture Truth 0.5. CandidateClaim supports extraction metadata and
+conditional review attribution: `unreviewed` does not require reviewer fields,
+while `approved_for_portable` and `rejected` require nonempty `reviewed_by` and
+RFC3339 `reviewed_at`. SourceRef has no `text` field; provenance is locator and
+metadata only, preserving the raw-source privacy boundary.
 
 ## Demo and drift verification
 
@@ -108,7 +123,7 @@ fixtures: capture-truth `captureSources` normalizes the evidence-pack
 sources, timeline-truth `createTimeline`/`diffTimelines` builds and diffs the
 plan timelines, and Program Truth's canonical status artifact is mapped
 (`mapProgramArtifact`) into a `kind: "status_artifact"`,
-`schema_version: "1.0.0"` artifact and reviewed by this engine. The demo
+`schema_version: "2.0.0"` artifact and reviewed by this engine. The demo
 payload embeds deterministic, public-safe projections (a fixed capture clock,
 no raw source bodies). In a single-repo install, missing or incompatible
 components use the checked-in public-safe sibling projection and the demo

@@ -1,0 +1,39 @@
+{
+  "kind": "status_artifact",
+  "schema_version": "2.0.0",
+  "as_of": "2026-08-11T00:00:00.000Z",
+  "initiative": {
+    "name": "Checkout migration launch readiness",
+    "owner": "Platform TPM",
+    "objective": "Ship the checkout migration on time with verifiable readiness."
+  },
+  "policy": {
+    "max_observation_age_days": 14,
+    "max_source_content_age_days": 14
+  },
+  "sources": [
+    {
+      "id": "release-status",
+      "type": "status-note",
+      "url": "https://example.com/status/checkout-release",
+      "observed_at": "2026-08-10T09:00:00.000Z",
+      "source_updated_at": "2026-08-10T09:00:00.000Z"
+    }
+  ],
+  "claims": [
+    {
+      "id": "release-ready",
+      "kind": "fact",
+      "state": "active",
+      "subject": "release.ready",
+      "value": false,
+      "text": "Release readiness is false.",
+      "source_refs": [
+        {
+          "source_id": "release-status",
+          "locator": "https://example.com/status/checkout-release"
+        }
+      ]
+    }
+  ]
+}

@@ -5,7 +5,7 @@
   "description": "A reviewed claim as produced by the review engine and as referenced by StatusArtifact.claims. kind is the explicit final classification; state defaults to active and governs contradiction and health participation (only active claims count); subject/value pair the typed contradiction key; mitigation is required on active risks; source references are always canonical structured SourceRef objects.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "kind", "text"],
+  "required": ["id", "kind", "text", "source_refs"],
   "properties": {
     "id": {
       "type": "string",
@@ -30,7 +30,7 @@
     },
     "value": {
       "oneOf": [
-        { "type": "string", "minLength": 1 },
+        { "type": "string", "minLength": 1, "maxLength": 2048 },
         { "type": "number" },
         { "type": "boolean" }
       ],
@@ -39,11 +39,13 @@
     "text": {
       "type": "string",
       "minLength": 1,
+      "maxLength": 4096,
       "description": "Human-readable claim text, exported verbatim."
     },
     "owner": {
       "type": "string",
       "minLength": 1,
+      "maxLength": 2048,
       "description": "Human or team accountable for the claim."
     },
     "due_at": {
@@ -54,12 +56,15 @@
     "mitigation": {
       "type": "string",
       "minLength": 1,
+      "maxLength": 4096,
       "description": "Active risks require owner and mitigation."
     },
     "source_refs": {
       "type": "array",
+      "minItems": 1,
+      "maxItems": 20,
       "items": { "$ref": "https://truth-tools.dev/schemas/source-ref.schema.json" },
-      "description": "Canonical structured references; may be empty only when the input omitted them, which the engine reports as a blocking issue."
+      "description": "Canonical structured references. The engine reports an empty array as a blocking issue."
     }
   }
 }

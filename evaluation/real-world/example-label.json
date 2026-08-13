@@ -1,0 +1,10 @@
+{
+  "id": "synthetic-example",
+  "reviewer": "adjudicator",
+  "defect_types": ["missing_health_assessment"],
+  "health": "unknown",
+  "compatibility": false,
+  "tolerated": false,
+  "artifact_quality": "needs_review",
+  "notes": "Synthetic example only; not a real-world evaluation result."
+}

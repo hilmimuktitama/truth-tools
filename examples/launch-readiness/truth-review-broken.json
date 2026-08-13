@@ -1,6 +1,6 @@
 {
   "kind": "truth_review",
-  "schema_version": "1.0.0",
+  "schema_version": "2.0.0",
   "initiative": {
     "name": "Checkout migration launch readiness",
     "owner": "Platform TPM",
@@ -11,8 +11,22 @@
     "max_observation_age_days": 7,
     "max_source_content_age_days": 3
   },
+  "health_assessment": {
+    "state": "on_track",
+    "owner": "Platform TPM",
+    "rationale": "The supplied status claims on-track health.",
+    "source_refs": [
+      {
+        "source_id": "risk-review",
+        "locator": "https://example.com/notes/risk-review"
+      }
+    ]
+  },
   "artifact_quality": "fail",
+  "reported_program_health": "on_track",
+  "claim_health_floor": "blocked",
   "program_health": "blocked",
+  "health_consistency": "conflicting",
   "summary": {
     "sources": 3,
     "claims": 4,
@@ -21,7 +35,7 @@
     "risks": 1,
     "unknowns": 0,
     "conflicts": 1,
-    "issues": 9,
+    "issues": 10,
     "deprecations": 0
   },
   "sources": [
@@ -198,8 +212,9 @@
       {
         "type": "raw_source_content",
         "severity": "blocking",
-        "location": "sources[0]",
-        "message": "Remove raw source fields (content); keep source bodies in their system of record."
+        "location": "sources[0].content",
+        "message": "Remove raw source field 'content'; keep source bodies in their system of record.",
+        "field": "content"
       },
       {
         "type": "stale_observation",
@@ -260,6 +275,12 @@
         "severity": "review",
         "location": "claims[3]",
         "message": "Active risk 'capacity-risk' has no mitigation; add owner and mitigation."
+      },
+      {
+        "type": "health_assessment_conflicts_with_blocker",
+        "severity": "blocking",
+        "location": "health_assessment.state",
+        "message": "Reported health 'on_track' conflicts with an active blocker; final health is blocked."
       }
     ],
     "deprecations": []
@@ -280,8 +301,8 @@
     {
       "priority": "P0",
       "type": "fix_evidence",
-      "action": "Remove raw source fields (content); keep source bodies in their system of record.",
-      "location": "sources[0]"
+      "action": "Remove raw source field 'content'; keep source bodies in their system of record.",
+      "location": "sources[0].content"
     },
     {
       "priority": "P0",
@@ -294,6 +315,12 @@
       "type": "fix_evidence",
       "action": "Active blocker 'rollback-owner' has no resolution date; add owner and due_at.",
       "location": "claims[2]"
+    },
+    {
+      "priority": "P0",
+      "type": "fix_evidence",
+      "action": "Reported health 'on_track' conflicts with an active blocker; final health is blocked.",
+      "location": "health_assessment.state"
     },
     {
       "priority": "P1",
