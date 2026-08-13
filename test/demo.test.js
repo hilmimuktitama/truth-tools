@@ -214,6 +214,19 @@ test("release workflow uses a published release and validates the exact tag", ()
   assert.match(contents, /steps\.suite-lock\.outputs\.timeline_truth_ref/);
   assert.match(contents, /steps\.suite-lock\.outputs\.program_truth_ref/);
   assert.match(contents, /--github-output --release/);
+  const releaseSteps = [
+    "ref: ${{ steps.release-tag.outputs.tag }}",
+    "- uses: actions/setup-node@v4",
+    "- name: Install npm 12.0.2 for trusted publishing",
+    "- run: npm ci",
+    "- name: Resolve suite-lock refs"
+  ].map((step) => {
+    const index = contents.indexOf(step);
+    assert.notEqual(index, -1, `release workflow is missing ${step}`);
+    return index;
+  });
+  assert.deepEqual(releaseSteps, releaseSteps.slice().sort((left, right) => left - right),
+    "exact-tag checkout and dependency setup must precede suite-lock verification");
   assert.match(contents, /- run: npm run demo\n/);
   assert.equal(contents.includes("npm run demo:write"), false);
 });
