@@ -15,6 +15,10 @@ jobs:
       TRUTH_SUITE_REQUIRE_SIBLINGS: "1"
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
       - name: Resolve suite-lock refs
         id: suite-lock
         run: node scripts/suite-lock-verify.js --github-output >> "$GITHUB_OUTPUT"
@@ -34,10 +38,6 @@ jobs:
           repository: hilmimuktitama/program-truth
           path: components/program-truth
           ref: ${{ steps.suite-lock.outputs.program_truth_ref }}
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - run: npm ci
       - name: Verify suite lock and checkout exact refs
         run: node scripts/suite-lock-verify.js --component-root "$TRUTH_SUITE_COMPONENT_ROOT" --verify-checkouts --verify-contracts
       - run: npm audit --audit-level=high
